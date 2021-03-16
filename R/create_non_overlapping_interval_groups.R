@@ -196,11 +196,11 @@ for (i in 1:number_of_groups) {
   amplicon_group <- filter(amplicons, Group == i)
 
   amplicon_group %>%
-    transmute(Chromosome, Start = Start - 1, End) %>%
+    transmute(Chromosome, Start = Start - 1, End, ID, Score = 0, Strand = "+") %>%
     write_tsv(str_c("amplicons.", i, ".bed"), col_names = FALSE)
 
   amplicon_group %>%
-    transmute(Chromosome, Start = TargetStart - 1, End = TargetEnd) %>%
+    transmute(Chromosome, Start = TargetStart - 1, End = TargetEnd, ID, Score = 0, Strand = "+") %>%
     write_tsv(str_c("targets.", i, ".bed"), col_names = FALSE)
 }
 
