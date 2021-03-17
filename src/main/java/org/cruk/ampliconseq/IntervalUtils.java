@@ -50,12 +50,28 @@ public class IntervalUtils {
         if (intervalFile.getName().toLowerCase().endsWith(".bed")) {
             return IntervalUtils.readBEDFile(intervalFile);
         } else {
-            IntervalList intervalList = IntervalList.fromFile(intervalFile);
-            // note that an unmodifiable list is returned by intervalList.getIntervals()
-            List<Interval> intervals = new ArrayList<Interval>();
-            intervals.addAll(intervalList.getIntervals());
-            return intervals;
+            return IntervalUtils.readIntervalListFile(intervalFile);
         }
+    }
+
+    /**
+     * Reads a Picard-style interval list file (5 column tabular format with
+     * sequence dictionary header).
+     *
+     * Note that an unmodifiable list of Interval objects is returned by the
+     * IntervalList created by IntervalList.fromFile(). Here the contents are
+     * copied to a regular ArrayList.
+     *
+     * @param intervalListFile the Picard-style interval list file.
+     * @return a list of intervals
+     */
+    public static List<Interval> readIntervalListFile(File intervalListFile) {
+        IntervalList intervalList = IntervalList.fromFile(intervalListFile);
+        // note that an unmodifiable list is returned by intervalList.getIntervals()
+        List<Interval> intervals = new ArrayList<Interval>();
+        intervals.addAll(intervalList.getIntervals());
+        return intervals;
+
     }
 
     /**
