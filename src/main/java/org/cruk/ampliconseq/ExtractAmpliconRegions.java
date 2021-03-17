@@ -238,7 +238,8 @@ public class ExtractAmpliconRegions {
         try {
             List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
 
-            writeCoverageHeader(coverageWriter);
+            if (coverageWriter != null)
+                writeCoverageHeader(coverageWriter);
 
             Map<String, Integer> observedLookup = new HashMap<String, Integer>();
 
@@ -306,7 +307,8 @@ public class ExtractAmpliconRegions {
 
                             writer.addAlignment(record);
 
-                            baseCount += countBasesCovered(record, amplicon.getStart(), amplicon.getEnd());
+                            if (coverageWriter != null)
+                                baseCount += countBasesCovered(record, amplicon.getStart(), amplicon.getEnd());
                         }
                     }
                 }
@@ -315,19 +317,15 @@ public class ExtractAmpliconRegions {
                 logger.info(recordCount + " records written");
 
                 if (coverageWriter != null) {
-                    // pair count where both ends anchored to different ends of the amplicon
-                    int anchoredBothEndsCount = 0;
-                    for (int observedFlag : observedLookup.values()) {
-                        if (observedFlag == 15)
-                            anchoredBothEndsCount++;
-                    }
+                    int anchoredBothEndsCount = countAnchoredBothEnds(observedLookup);
                     writeCoverage(coverageWriter, amplicon, baseCount, observedLookup.size(), anchoredBothEndsCount);
                 }
             }
 
             CloserUtil.close(reader);
             writer.close();
-            coverageWriter.close();
+            if (coverageWriter != null)
+                coverageWriter.close();
 
         } catch (IOException e) {
             logger.error(e);
@@ -350,11 +348,26 @@ public class ExtractAmpliconRegions {
             for (AlignmentBlock block : record.getAlignmentBlocks()) {
                 int last = CoordMath.getEnd(block.getReferenceStart(), block.getLength());
                 for (int pos = block.getReferenceStart(); pos <= last; ++pos) {
-                    if (pos >= start && pos <= end) {
+                    if (pos >= start && pos <= end)
                         count++;
-                    }
                 }
             }
+        }
+        return count;
+    }
+
+    /**
+     * Count read pairs where both ends are anchored to the two ends of the current
+     * amplicon.
+     * 
+     * @param observedLookup
+     * @return
+     */
+    private int countAnchoredBothEnds(Map<String, Integer> observedLookup) {
+        int count = 0;
+        for (int observedFlag : observedLookup.values()) {
+            if (observedFlag == 15)
+                count++;
         }
         return count;
     }
@@ -366,9 +379,7 @@ public class ExtractAmpliconRegions {
      * @throws IOException
      */
     private void writeCoverageHeader(BufferedWriter writer) throws IOException {
-        if (writer != null) {
-            writer.write("CHROM\tSTART\tEND\tLENGTH\tNAME\tMEAN_COVERAGE\tREADS\tREAD_PAIRS\n");
-        }
+        writer.write("CHROM\tSTART\tEND\tLENGTH\tNAME\tMEAN_COVERAGE\tREADS\tREAD_PAIRS\n");
     }
 
     /**
@@ -383,27 +394,25 @@ public class ExtractAmpliconRegions {
      */
     private void writeCoverage(BufferedWriter writer, Interval amplicon, int baseCount, int pairCount,
             int anchoredBothEndsCount) throws IOException {
-        if (writer != null) {
 
-            int length = amplicon.getEnd() - amplicon.getStart() + 1;
-            double meanCoverage = baseCount / (double) (amplicon.getEnd() - amplicon.getStart() + 1);
+        int length = amplicon.getEnd() - amplicon.getStart() + 1;
+        double meanCoverage = baseCount / (double) (amplicon.getEnd() - amplicon.getStart() + 1);
 
-            writer.write(amplicon.getContig());
-            writer.write("\t");
-            writer.write(Integer.toString(amplicon.getStart()));
-            writer.write("\t");
-            writer.write(Integer.toString(amplicon.getEnd()));
-            writer.write("\t");
-            writer.write(Integer.toString(length));
-            writer.write("\t");
-            writer.write(amplicon.getName());
-            writer.write("\t");
-            writer.write(Float.toString((float) meanCoverage));
-            writer.write("\t");
-            writer.write(Integer.toString(pairCount));
-            writer.write("\t");
-            writer.write(Integer.toString(anchoredBothEndsCount));
-            writer.write("\n");
-        }
+        writer.write(amplicon.getContig());
+        writer.write("\t");
+        writer.write(Integer.toString(amplicon.getStart()));
+        writer.write("\t");
+        writer.write(Integer.toString(amplicon.getEnd()));
+        writer.write("\t");
+        writer.write(Integer.toString(length));
+        writer.write("\t");
+        writer.write(amplicon.getName());
+        writer.write("\t");
+        writer.write(Float.toString((float) meanCoverage));
+        writer.write("\t");
+        writer.write(Integer.toString(pairCount));
+        writer.write("\t");
+        writer.write(Integer.toString(anchoredBothEndsCount));
+        writer.write("\n");
     }
 }
