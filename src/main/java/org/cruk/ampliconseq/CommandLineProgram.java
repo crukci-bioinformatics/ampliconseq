@@ -42,6 +42,11 @@ import org.apache.commons.cli.ParseException;
 public abstract class CommandLineProgram {
 
     /**
+     * @return a short description of what the program does
+     */
+    protected abstract String getHelpDescription();
+
+    /**
      * Configure command line options.
      *
      * @return an Options object
@@ -122,7 +127,7 @@ public abstract class CommandLineProgram {
         out.println();
         HelpFormatter helpFormatter = new HelpFormatter();
         String syntax = "java " + getClass().getName() + " [options]";
-        String description = "\nExtracts reads from a BAM file that correspond to targeted PCR/amplicion regions.\n\n";
+        String description = "\n" + getHelpDescription() + "\n\n";
         helpFormatter.printHelp(out, 80, syntax, description, options, 4, 8, "", false);
         out.println();
         out.flush();

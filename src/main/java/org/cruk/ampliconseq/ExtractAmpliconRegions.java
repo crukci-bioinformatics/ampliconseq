@@ -73,67 +73,59 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         extractAmpliconRegions.run();
     }
 
-    /**
-     * Configure command line options.
-     *
-     * @return
-     */
+    @Override
+    protected String getHelpDescription() {
+        return "Extracts reads from a BAM file that correspond to targeted PCR/amplicion regions";
+    }
+
+    @Override
     protected Options createOptions() {
         Options options = new Options();
 
         Option option = new Option("h", "help", false, "Print command line options");
         options.addOption(option);
 
-        option = new Option("i", "bam", true, "BAM input file(s), which must be in coordinate sort order and indexed.");
+        option = new Option("i", "bam", true, "BAM input file which must be in coordinate sort order and indexed (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
 
-        option = new Option("a", "amplicons", true,
-                "The file containing the set of amplicons from which to create non-overlapping sets; can be in BED or Picard-style interval format.");
+        option = new Option("l", "intervals", true,
+                "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
 
         option = new Option(null, "maximum-distance", true,
-                "The maximum distance of the alignment start/end to the amplicon start/end position.");
-        option.setRequired(false);
+                "The maximum distance of the alignment start/end to the amplicon start/end position (default: 0)");
         option.setType(Number.class);
         options.addOption(option);
 
         option = new Option(null, "require-both-ends-anchored", false,
-                "Set if both ends of the amplicon need to be anchored by paired end reads.");
-        option.setRequired(false);
+                "Set if both ends of the amplicon need to be anchored by paired end reads");
         options.addOption(option);
 
-        option = new Option(null, "unmark-duplicate-reads", false, "Remove duplicate flag, if set, from reads.");
-        option.setRequired(false);
+        option = new Option(null, "unmark-duplicate-reads", false, "Remove duplicate flag, if set, from reads");
         options.addOption(option);
 
         option = new Option("o", "amplicon-bam", true,
-                "The output BAM file containing reads for the given set of amplicons.");
+                "The output BAM file containing reads that match the amplicon coordinates");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
 
         option = new Option("c", "coverage", true,
-                "Optional output coverage file summarizing read counts for each amplicon.");
-        option.setRequired(false);
+                "Optional output coverage file summarizing read counts for each amplicon");
         option.setType(File.class);
         options.addOption(option);
 
         return options;
     }
 
-    /**
-     * Extract option values.
-     *
-     * @param commandLine
-     * @throws ParseException
-     */
+    @Override
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
         bamFile = (File) commandLine.getParsedOptionValue("bam");
-        ampliconsFile = (File) commandLine.getParsedOptionValue("amplicons");
+        ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
         if (commandLine.hasOption("maximum-distance")) {
             maximumDistance = ((Number) commandLine.getParsedOptionValue("maximum-distance")).intValue();
         }
@@ -157,13 +149,13 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
                 .makeSAMOrBAMWriter(reader.getFileHeader(), false, ampliconBamFile);
 
+        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+
         BufferedWriter coverageWriter = null;
         if (ampliconCoverageFile != null)
             coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
 
         try {
-            List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
-
             if (coverageWriter != null)
                 writeCoverageHeader(coverageWriter);
 
