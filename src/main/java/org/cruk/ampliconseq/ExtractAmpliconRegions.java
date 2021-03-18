@@ -85,7 +85,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         Option option = new Option("h", "help", false, "Print command line options");
         options.addOption(option);
 
-        option = new Option("i", "bam", true, "BAM input file which must be in coordinate sort order and indexed (required)");
+        option = new Option("i", "bam", true,
+                "BAM input file which must be in coordinate sort order and indexed (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
@@ -238,12 +239,14 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         int matchFlag = 0;
         if (record.getReadNegativeStrandFlag()) {
             if (Math.abs(record.getAlignmentEnd() - amplicon.getEnd()) <= maximumDistance
-                    && Math.abs(record.getUnclippedEnd() - amplicon.getEnd()) <= maximumDistance)
+                    && Math.abs(record.getUnclippedEnd() - amplicon.getEnd()) <= maximumDistance) {
                 matchFlag = 2;
+            }
         } else {
             if (Math.abs(record.getAlignmentStart() - amplicon.getStart()) <= maximumDistance
-                    && Math.abs(record.getUnclippedStart() - amplicon.getStart()) <= maximumDistance)
+                    && Math.abs(record.getUnclippedStart() - amplicon.getStart()) <= maximumDistance) {
                 matchFlag = 1;
+            }
         }
 
         if (matchFlag == 0)
@@ -313,7 +316,22 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * @throws IOException
      */
     private void writeCoverageHeader(BufferedWriter writer) throws IOException {
-        writer.write("CHROM\tSTART\tEND\tLENGTH\tNAME\tMEAN_COVERAGE\tREADS\tREAD_PAIRS\n");
+        writer.write("Chromosome");
+        writer.write("\t");
+        writer.write("Start");
+        writer.write("\t");
+        writer.write("End");
+        writer.write("\t");
+        writer.write("Length");
+        writer.write("\t");
+        writer.write("Name");
+        writer.write("\t");
+        writer.write("Mean coverage");
+        writer.write("\t");
+        writer.write("Reads");
+        writer.write("\t");
+        writer.write("Read pairs");
+        writer.write("\n");
     }
 
     /**
