@@ -61,7 +61,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
     private File bamFile;
     private File ampliconsFile;
-    private int maximumDistance;
+    private int maximumDistance = 0;
     private boolean requireBothEndsAnchored = false;
     private boolean unmarkDuplicateReads = false;
     private File ampliconBamFile;
@@ -97,8 +97,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         option.setType(File.class);
         options.addOption(option);
 
-        option = new Option(null, "maximum-distance", true,
-                "The maximum distance of the alignment start/end to the amplicon start/end position (default: 0)");
+        option = new Option("d", "maximum-distance", true,
+                "The maximum distance of the alignment start/end to the amplicon start/end position (default: "
+                        + maximumDistance + ")");
         option.setType(Number.class);
         options.addOption(option);
 
@@ -110,13 +111,13 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         options.addOption(option);
 
         option = new Option("o", "amplicon-bam", true,
-                "The output BAM file containing reads that match the amplicon coordinates");
+                "The output BAM file containing reads that match the amplicon coordinates (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
 
         option = new Option("c", "coverage", true,
-                "Optional output coverage file summarizing read counts for each amplicon");
+                "Output coverage file summarizing read counts for each amplicon (optional)");
         option.setType(File.class);
         options.addOption(option);
 
@@ -141,6 +142,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * amplicon intervals.
      */
     private void run() {
+
+        ProgressLogger progress = new ProgressLogger(logger, 100000);
+
         IOUtil.assertFileIsReadable(bamFile);
         IOUtil.assertFileIsReadable(ampliconsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
@@ -153,12 +157,14 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
 
         BufferedWriter coverageWriter = null;
-        if (ampliconCoverageFile != null)
+        if (ampliconCoverageFile != null) {
             coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
+        }
 
         try {
-            if (coverageWriter != null)
+            if (coverageWriter != null) {
                 writeCoverageHeader(coverageWriter);
+            }
 
             Map<String, Integer> ampliconReadFlags = new HashMap<String, Integer>();
 
@@ -192,28 +198,36 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
                     if (isAmpliconRead(record, ampliconReadFlags)) {
                         recordCount++;
 
-                        if (unmarkDuplicateReads)
+                        if (unmarkDuplicateReads) {
                             record.setDuplicateReadFlag(false);
+                        }
 
                         writer.addAlignment(record);
 
-                        if (coverageWriter != null)
+                        if (coverageWriter != null) {
                             baseCount += countBasesCovered(record, amplicon);
+                        }
                     }
+
+                    progress.record(record);
                 }
                 iterator.close();
 
-                logger.info(recordCount + " records written");
+                logger.info(recordCount + " records written for " + amplicon.toString());
 
                 if (coverageWriter != null) {
                     writeCoverage(coverageWriter, amplicon, ampliconReadFlags, baseCount);
                 }
             }
 
-            CloserUtil.close(reader);
+            logger.info("Writing " + ampliconBamFile.getName());
             writer.close();
-            if (coverageWriter != null)
+
+            CloserUtil.close(reader);
+
+            if (coverageWriter != null) {
                 coverageWriter.close();
+            }
 
         } catch (IOException e) {
             logger.error(e);
@@ -230,8 +244,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      *                          amplicon
      */
     private void addAmpliconReadFlags(SAMRecord record, Interval amplicon, Map<String, Integer> ampliconReadFlags) {
-        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag())
+        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag()) {
             return;
+        }
 
         String name = record.getReadName();
         int flags = ampliconReadFlags.getOrDefault(name, 0);
@@ -249,12 +264,14 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             }
         }
 
-        if (matchFlag == 0)
+        if (matchFlag == 0) {
             return;
+        }
 
         int readInPairFlag = 0;
-        if (record.getReadPairedFlag())
+        if (record.getReadPairedFlag()) {
             readInPairFlag = record.getFirstOfPairFlag() ? 4 : 8;
+        }
 
         flags |= matchFlag;
         flags |= readInPairFlag;
@@ -273,8 +290,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      *         current amplicon
      */
     private boolean isAmpliconRead(SAMRecord record, Map<String, Integer> ampliconReadFlags) {
-        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag())
+        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag()) {
             return false;
+        }
 
         String name = record.getReadName();
         int flags = ampliconReadFlags.getOrDefault(name, 0);
@@ -302,8 +320,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         for (AlignmentBlock block : record.getAlignmentBlocks()) {
             int end = CoordMath.getEnd(block.getReferenceStart(), block.getLength());
             for (int pos = block.getReferenceStart(); pos <= end; ++pos) {
-                if (pos >= amplicon.getStart() && pos <= amplicon.getEnd())
+                if (pos >= amplicon.getStart() && pos <= amplicon.getEnd()) {
                     count++;
+                }
             }
         }
         return count;
@@ -355,10 +374,12 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         int readCount = 0;
         int anchoredBothEndsCount = 0;
         for (int flags : ampliconReadFlags.values()) {
-            if (flags != 0)
+            if (flags != 0) {
                 readCount++;
-            if (flags == 15)
+            }
+            if (flags == 15) {
                 anchoredBothEndsCount++;
+            }
         }
 
         writer.write(amplicon.getContig());
