@@ -38,6 +38,8 @@ import org.apache.commons.cli.ParseException;
 /**
  * Abstract base class for command line programs with functions for handling
  * command-line arguments and printing help/usage on available options.
+ *
+ * @author eldrid01
  */
 public abstract class CommandLineProgram {
 
@@ -95,8 +97,9 @@ public abstract class CommandLineProgram {
      * @param options
      */
     private void checkForHelp(String[] args, Options options) {
-        if (!options.hasLongOption("help"))
+        if (!options.hasLongOption("help")) {
             return;
+        }
 
         // create a copy of the options with none set to be required
         Options checkForHelpOptions = new Options();

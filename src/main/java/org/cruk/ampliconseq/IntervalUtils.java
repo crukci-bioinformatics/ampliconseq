@@ -38,7 +38,13 @@ import htsjdk.tribble.annotation.Strand;
 import htsjdk.tribble.bed.BEDCodec;
 import htsjdk.tribble.bed.BEDFeature;
 
+/**
+ * Utility methods for reading intervals from BED and Picard-style files.
+ *
+ * @author eldrid01
+ */
 public class IntervalUtils {
+
     /**
      * Reads intervals from a BED file or Picard-style interval list format
      * depending on file extension.
@@ -59,8 +65,8 @@ public class IntervalUtils {
      * sequence dictionary header).
      *
      * Note that an unmodifiable list of Interval objects is returned by the
-     * IntervalList created by IntervalList.fromFile(). Here the contents are
-     * copied to a regular ArrayList.
+     * IntervalList created by IntervalList.fromFile(). Here the contents are copied
+     * to a regular ArrayList.
      *
      * @param intervalListFile the Picard-style interval list file.
      * @return a list of intervals
