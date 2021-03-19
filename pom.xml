@@ -101,6 +101,10 @@
                             <mainClass>org.cruk.ampliconseq.ExtractAmpliconRegions</mainClass>
                             <id>extract-amplicon-regions</id>
                         </program>
+                        <program>
+                            <mainClass>org.cruk.ampliconseq.PileupCounts</mainClass>
+                            <id>pileup-counts</id>
+                        </program>
                     </programs>
                 </configuration>
             </plugin>
