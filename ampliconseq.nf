@@ -77,6 +77,8 @@ process create_non_overlapping_amplicon_groups {
 // extract reads that correspond to a set of amplicon intervals to create a
 // subset BAM file
 process extract_amplicon_regions {
+    tag "${id} ${group}"
+
     input:
         tuple val(id), path(bam), val(group), path(amplicons)
 
@@ -148,7 +150,7 @@ workflow {
     extract_amplicon_regions(bam_amplicon_groups)
 
     // concatenate coverage files for each BAM file
-    amplicon_coverage = extract_amplicon_regions.out.amplicon_coverage
+    amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(keepHeader: true) { id, coverage -> [ "${id}.amplicon_coverage.txt", coverage ] }
 
 }
