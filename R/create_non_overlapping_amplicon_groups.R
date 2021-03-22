@@ -4,7 +4,7 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  stop("Usage: Rscript create_non_overlapping_interval_groups.R amplicons_file reference_genome_index")
+  stop("Usage: Rscript create_non_overlapping_amplicon_groups.R amplicons_file reference_genome_index")
 }
 
 amplicons_file <- args[1]
