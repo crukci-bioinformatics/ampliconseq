@@ -131,10 +131,7 @@ workflow {
     // amplicon file name
     amplicon_groups = create_non_overlapping_amplicon_groups.out.amplicon_groups
         .flatten()
-        .map { file ->
-            def group = (file.name =~ /(\d+)/)[0][1] as Integer
-            return tuple(group, file)
-        }
+        .map { file -> tuple( (file.name =~ /(\d+)/)[0][1] as Integer, file ) }
 
     // BAM file channel created by reading the validated sample sheet
     bam = check_samples.out
