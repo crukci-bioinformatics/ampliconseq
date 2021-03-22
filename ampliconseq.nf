@@ -91,7 +91,7 @@ process extract_amplicon_regions {
         output_bai = "${id}.${group}.bai"
         coverage = "${id}.amplicon_coverage.${group}.txt"
         """
-        awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$3 - 1, \$4 }' ${amplicons} > amplicons.bed
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$3 - 1, \$4, \$1 }' ${amplicons} > amplicons.bed
 
         extract-amplicon-regions \
             --bam ${bam} \
