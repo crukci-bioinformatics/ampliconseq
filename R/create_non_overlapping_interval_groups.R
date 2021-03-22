@@ -138,19 +138,13 @@ message("Number of non-overlapping interval groups: ", number_of_groups)
 
 amplicons <- left_join(amplicons, groups, by = "ID")
 
-write_csv(amplicons, "amplicon_groups.csv")
+write_tsv(amplicons, "amplicon_groups.txt")
 
 
-# write BED files for each group
-for (i in 1:number_of_groups) {
-  amplicon_group <- filter(amplicons, Group == i)
-
-  amplicon_group %>%
-    transmute(Chromosome, Start = AmpliconStart - 1, End = AmpliconEnd, ID, Score = 0, Strand = "+") %>%
-    write_tsv(str_c("amplicons.", i, ".bed"), col_names = FALSE)
-
-  amplicon_group %>%
-    transmute(Chromosome, Start = TargetStart - 1, End = TargetEnd, ID, Score = 0, Strand = "+") %>%
-    write_tsv(str_c("targets.", i, ".bed"), col_names = FALSE)
+# write separate amplicon details files for each group
+for (group in 1:number_of_groups) {
+  amplicons %>%
+    filter(Group == group) %>%
+    write_tsv(str_c("amplicon_groups.", group, ".txt"))
 }
 
