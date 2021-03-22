@@ -10,8 +10,7 @@ nextflow.enable.dsl = 2
 params.help                  = false
 params.sampleSheet           = "${launchDir}/samples.csv"
 params.bamDir                = "${launchDir}/bam"
-params.ampliconIntervals     = "${launchDir}/reference_data/amplicons.csv"
-params.targetIntervals       = "${launchDir}/reference_data/targets.csv"
+params.ampliconDetails       = "${launchDir}/reference_data/amplicons.csv"
 params.referenceGenomeFasta  = "${launchDir}/reference_data/GRCh37.fa"
 params.outputDir             = "${launchDir}"
 params.outputPrefix          = ""
@@ -47,18 +46,17 @@ process check_samples {
 process create_non_overlapping_interval_groups {
     input:
         path install_dir
-        path amplicon_intervals
-        path target_intervals
+        path amplicon_details
         path reference_genome_index
 
     output:
-        path "amplicon_details.csv", emit: amplicons
+        path "amplicon_groups.csv", emit: amplicons
         path "amplicons.*.bed", emit: amplicon_bed_files
         path "targets.*.bed", emit: target_bed_files
 
     script:
         """
-        Rscript ${install_dir}/R/create_non_overlapping_interval_groups.R ${amplicon_intervals} ${target_intervals} ${reference_genome_index}
+        Rscript ${install_dir}/R/create_non_overlapping_interval_groups.R ${amplicon_details} ${reference_genome_index}
         """
 }
 
@@ -71,8 +69,7 @@ workflow {
 
     install_dir = channel.fromPath(projectDir, checkIfExists: true)
     sample_sheet = channel.fromPath(params.sampleSheet, checkIfExists: true)
-    amplicon_intervals = channel.fromPath(params.ampliconIntervals, checkIfExists: true)
-    target_intervals = channel.fromPath(params.targetIntervals, checkIfExists: true)
+    amplicon_details = channel.fromPath(params.ampliconDetails, checkIfExists: true)
     reference_genome_fasta = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
     reference_genome_index = channel.fromPath("${params.referenceGenomeFasta}.fai", checkIfExists: true)
 
@@ -80,8 +77,7 @@ workflow {
 
     create_non_overlapping_interval_groups(
         install_dir,
-        amplicon_intervals,
-        target_intervals,
+        amplicon_details,
         reference_genome_index
     )
 
@@ -121,8 +117,7 @@ def helpMessage() {
             --help                        Show this message and exit
             --sample-sheet                CSV/TSV file containing details of sample datasets (ID and Sample columns required)
             --bam-dir                     Directory in which BAM files are located
-            --amplicon-intervals          CSV file containing amplicon intervals (ID, Chromosome, Start, End columns required) or Picard-style intervals list file
-            --target-intervals            CSV file containing target intervals (ID, Chromosome, Start, End columns required) or Picard-style intervals list file
+            --amplicon-details            CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
             --reference-genome-fasta      FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
             --output-dir                  Directory to which output files are written
             --output-prefix               Prefix for output file names
@@ -134,8 +129,7 @@ def helpMessage() {
         params {
             sampleSheet          = "samples.csv"
             bamDir               = "bam"
-            ampliconIntervals    = "amplicons.csv"
-            targetIntervals      = "targets.csv"
+            ampliconDetails      = "amplicons.csv"
             referenceGenomeFasta = "/reference_data/GRCh37.fa"
             outputDir            = "results"
             outputPrefix         = ""

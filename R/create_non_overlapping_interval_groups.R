@@ -1,127 +1,77 @@
+# Script for creating groups of non-overlapping groups of amplicons in which
+# no amplicon within a group overlaps with another amplicon in the same group.
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  stop("Usage: Rscript check_samples_file.R amplicon_intervals_file target_intervals_file reference_genome_index")
+  stop("Usage: Rscript create_non_overlapping_interval_groups.R amplicons_file reference_genome_index")
 }
 
-amplicon_intervals_file <- args[1]
-target_intervals_file <- args[2]
-reference_genome_index_file <- args[3]
+amplicons_file <- args[1]
+reference_genome_index_file <- args[2]
 
 suppressPackageStartupMessages(library(tidyverse))
 
 
-# read and check amplicon intervals file
-expected_columns <- c("ID", "Chromosome", "Start", "End")
-
-if (str_ends(str_to_lower(amplicon_intervals_file), "\\.csv")) {
-  amplicons <- read_csv(amplicon_intervals_file)
-
-  missing_columns <- setdiff(expected_columns, colnames(amplicons))
-  if (length(missing_columns) > 0) {
-    stop("missing columns found in ", amplicon_intervals_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
-  }
+# read and check amplicons file
+if (str_ends(str_to_lower(amplicons_file), "\\.csv")) {
+  amplicons <- read_csv(amplicons_file, col_types = cols(.default = col_character()))
 } else {
-  amplicons <- read_tsv(amplicon_intervals_file, comment = "@", col_types = "cnncc", col_names = c("Chromosome", "Start", "End", "Strand", "ID")) %>%
-    select(-Strand)
+  amplicons <- read_tsv(amplicons_file, col_types = cols(.default = col_character()))
 }
 
+expected_columns <- c("ID", "Chromosome", "AmpliconStart", "AmpliconEnd", "TargetStart", "TargetEnd", "Gene")
+missing_columns <- setdiff(expected_columns, colnames(amplicons))
+if (length(missing_columns) > 0) {
+  stop("missing columns found in ", amplicons_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
+}
 amplicons <- select(amplicons, all_of(expected_columns))
 
 if (nrow(amplicons) == 0) {
-  stop("no amplicon intervals found in: ", amplicon_intervals_file)
+  stop("no amplicon intervals found in: ", amplicons_file)
 }
 
 if (nrow(filter(amplicons, is.na(amplicons$ID))) > 0) {
-  stop("missing IDs in ", amplicon_intervals_file)
+  stop("missing IDs in ", amplicons_file)
 }
 
 duplicates <- amplicons %>%
   count(ID) %>%
   filter(n > 1)
 if (nrow(duplicates) > 0) {
-  stop("duplicate IDs found in ", amplicon_intervals_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
+  stop("duplicate IDs found in ", amplicons_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
 }
 
-incomplete <- filter(amplicons, if_any(everything(), ~ is.na(.x)))
-if (nrow(incomplete) > 0) {
-  stop("missing values found in ", amplicon_intervals_file)
-}
-
-incorrect_start_and_end <- filter(amplicons, Start < 1 | Start > End)
-if (nrow(incorrect_start_and_end)) {
-  stop("invalid start and/or end coordinates in ", amplicon_intervals_file, " for following amplicons: '", str_c(incorrect_start_and_end$ID, collapse = "', '"), "'")
+missing_values <- filter(amplicons, if_any(Chromosome:TargetEnd, ~ is.na(.x)))
+if (nrow(missing_values) > 0) {
+  stop("amplicons with missing values found in ", amplicons_file, ": '", str_c(missing_values$ID, collapse = "', '"), "'")
 }
 
 duplicates <- amplicons %>%
-  count(Chromosome, Start, End) %>%
+  count(Chromosome, AmpliconStart, AmpliconEnd) %>%
   filter(n > 1) %>%
-  left_join(amplicons, by = c("Chromosome", "Start", "End"))
+  left_join(amplicons, by = c("Chromosome", "AmpliconStart", "AmpliconEnd"))
 if (nrow(duplicates) > 0) {
-  stop("amplicons with same genomic coordinates in ", amplicon_intervals_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
+  stop("amplicons with same genomic coordinates in ", amplicons_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
 }
 
 
-# read and check target intervals file
-if (str_ends(str_to_lower(target_intervals_file), "\\.csv")) {
-  targets <- read_csv(target_intervals_file)
-  
-  missing_columns <- setdiff(expected_columns, colnames(targets))
-  if (length(missing_columns) > 0) {
-    stop("missing columns found in ", target_intervals_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
-  }
-} else {
-  targets <- read_tsv(target_intervals_file, comment = "@", col_types = "cnncc", col_names = c("Chromosome", "Start", "End", "Strand", "ID")) %>%
-    select(-Strand)
+# convert coordinates to integer values
+amplicons <- mutate(amplicons, across(AmpliconStart:TargetEnd, parse_integer))
+missing_values <- filter(amplicons, if_any(AmpliconStart:TargetEnd, ~ is.na(.x)))
+if (nrow(missing_values) > 0) {
+  stop("amplicons with non-integer coordinates found in ", amplicons_file, ": '", str_c(missing_values$ID, collapse = "', '"), "'")
 }
 
-targets <- select(targets, all_of(expected_columns))
-
-if (nrow(targets) == 0) {
-  stop("no target intervals found in: ", target_intervals_file)
+incorrect_amplicon_coordinates <- filter(amplicons, AmpliconStart < 1 | AmpliconStart > AmpliconEnd)
+if (nrow(incorrect_amplicon_coordinates)) {
+  stop("invalid amplicon start and/or end coordinates in ", amplicons_file, " for following amplicons: '", str_c(incorrect_amplicon_coordinates$ID, collapse = "', '"), "'")
 }
 
-if (nrow(filter(targets, is.na(targets$ID))) > 0) {
-  stop("missing IDs in ", target_intervals_file)
+incorrect_target_coordinates <- filter(amplicons, TargetStart < AmpliconStart | TargetEnd > AmpliconEnd | TargetStart > TargetEnd)
+if (nrow(incorrect_target_coordinates)) {
+  stop("invalid target start and/or end coordinates in ", amplicons_file, " for following amplicons: '", str_c(incorrect_target_coordinates$ID, collapse = "', '"), "'")
 }
-
-incomplete <- filter(targets, if_any(everything(), ~ is.na(.x)))
-if (nrow(incomplete) > 0) {
-  stop("missing values found in ", target_intervals_file)
-}
-
-incorrect_start_and_end <- filter(targets, Start < 1 | Start > End)
-if (nrow(incorrect_start_and_end)) {
-  stop("invalid start and end coordinates in ", target_intervals_file, " for following targets: '", str_c(incorrect_start_and_end$ID, collapse = "', '"), "'")
-}
-
-
-# check for inconsistencies between target and amplicon intervals
-missing <- anti_join(targets, amplicons, by = "ID")
-if (nrow(missing) > 0) {
-  stop("IDs found in ", target_intervals_file, " without corresponding entry in ", amplicon_intervals_file, ": '", str_c(missing$ID, collapse = "', '"), "'")
-}
-
-missing <- anti_join(amplicons, targets, by = "ID")
-if (nrow(missing) > 0) {
-  stop("IDs found in ", amplicon_intervals_file, " without corresponding entry in ", target_intervals_file, ": '", str_c(missing$ID, collapse = "', '"), "'")
-}
-
-targets <- rename(targets, TargetChromosome = Chromosome, TargetStart = Start, TargetEnd = End)
-amplicons <- inner_join(amplicons, targets, by = "ID")
-
-mismatched_chromosomes <- filter(amplicons, Chromosome != TargetChromosome)
-if (nrow(mismatched_chromosomes) > 0) {
-  stop("mismatched chromosomes in ", amplicon_intervals_file, " and ", target_intervals_file, " for the following amplicons: '", str_c(mismatched_chromosomes$ID, collapse = "', '"), "'")
-}
-
-targets_outside_amplicons <- filter(amplicons, TargetStart < Start | TargetEnd > End)
-if (nrow(targets_outside_amplicons) > 0) {
-  stop("Target intervals not within amplicon intervals: '", str_c(targets_outside_amplicons$ID, collapse = "', '"), "'")
-}
-
-amplicons <- select(amplicons, ID, Chromosome, Start, End, TargetStart, TargetEnd)
-
 
 # read reference genome index file
 chromosomes <- read_tsv(reference_genome_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
@@ -134,7 +84,7 @@ if (nrow(missing_chromosomes) > 0) {
 
 invalid_coordinates <- amplicons %>%
   left_join(chromosomes, by = "Chromosome") %>%
-  filter(End > Length)
+  filter(AmpliconEnd > Length)
 if (nrow(invalid_coordinates) > 0) {
   stop("Amplicons found with out-of-bounds coordinates: '", str_c(invalid_coordinates$ID, collapse = "', '"), "'")
 }
@@ -143,7 +93,7 @@ if (nrow(invalid_coordinates) > 0) {
 # sort into chromosome/position order
 amplicons <- amplicons %>%
   mutate(Chromosome = factor(Chromosome, levels = chromosomes$Chromosome)) %>%
-  arrange(Chromosome, Start, End)
+  arrange(Chromosome, AmpliconStart, AmpliconEnd)
 
 message("Number of amplicons: ", nrow(amplicons))
 
@@ -152,13 +102,13 @@ message("Number of amplicons: ", nrow(amplicons))
 
 find_overlaps <- function(query_id, query_chromosome, query_start, query_end) {
   amplicons %>%
-    filter(Chromosome == query_chromosome, Start <= query_end, End >= query_start) %>%
+    filter(Chromosome == query_chromosome, AmpliconStart <= query_end, AmpliconEnd >= query_start) %>%
     transmute(QueryID = query_id, OverlapID = ID) %>%
     select(ID = QueryID, OverlapID)
 }
 
 overlaps <- amplicons %>%
-  select(query_id = ID, query_chromosome = Chromosome, query_start = Start, query_end = End) %>%
+  select(query_id = ID, query_chromosome = Chromosome, query_start = AmpliconStart, query_end = AmpliconEnd) %>%
   pmap_dfr(find_overlaps)
 
 overlap_counts <- count(overlaps, ID)
@@ -188,7 +138,7 @@ message("Number of non-overlapping interval groups: ", number_of_groups)
 
 amplicons <- left_join(amplicons, groups, by = "ID")
 
-write_csv(amplicons, "amplicon_details.csv")
+write_csv(amplicons, "amplicon_groups.csv")
 
 
 # write BED files for each group
@@ -196,7 +146,7 @@ for (i in 1:number_of_groups) {
   amplicon_group <- filter(amplicons, Group == i)
 
   amplicon_group %>%
-    transmute(Chromosome, Start = Start - 1, End, ID, Score = 0, Strand = "+") %>%
+    transmute(Chromosome, Start = AmpliconStart - 1, End = AmpliconEnd, ID, Score = 0, Strand = "+") %>%
     write_tsv(str_c("amplicons.", i, ".bed"), col_names = FALSE)
 
   amplicon_group %>%
