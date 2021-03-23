@@ -28,10 +28,6 @@ if (params.help) {
 // check/derive parameters
 // -----------------------------------------------------------------------------
 
-bamDir = params.bamDir
-if (bamDir && !bamDir.endsWith("/")) {
-    bamDir = "${params.bamDir}/"
-}
 
 
 // -----------------------------------------------------------------------------
@@ -61,7 +57,7 @@ process create_non_overlapping_amplicon_groups {
     input:
         path install_dir
         path amplicon_details
-        path reference_genome_index
+        path reference_sequence_index
 
     output:
         path "amplicon_groups.txt", emit: amplicons
@@ -69,7 +65,7 @@ process create_non_overlapping_amplicon_groups {
 
     script:
         """
-        Rscript ${install_dir}/R/create_non_overlapping_amplicon_groups.R ${amplicon_details} ${reference_genome_index}
+        Rscript ${install_dir}/R/create_non_overlapping_amplicon_groups.R ${amplicon_details} ${reference_sequence_index}
         """
 }
 
@@ -77,23 +73,25 @@ process create_non_overlapping_amplicon_groups {
 // extract reads that correspond to a set of amplicon intervals to create a
 // subset BAM file
 process extract_amplicon_regions {
-    tag "${id} ${group}"
+    tag "${prefix}"
 
     input:
-        tuple val(id), path(bam), val(group), path(amplicons)
+        tuple val(id), path(bam), val(amplicon_group), path(amplicons)
 
     output:
-        tuple val(id), val(group), path(output_bam), path(output_bai), emit: bam
-        tuple val(id), path(coverage), emit: coverage
+        tuple val(id), path(output_bam), path(output_bai), val(amplicon_group), path(amplicons), emit: bam
+        path(coverage), emit: coverage
 
     script:
-        output_bam = "${id}.${group}.bam"
-        output_bai = "${id}.${group}.bai"
-        coverage = "${id}.amplicon_coverage.${group}.txt"
+        prefix = "${id}.${amplicon_group}"
+        output_bam = "${prefix}.bam"
+        output_bai = "${prefix}.bai"
+        coverage = "${prefix}.amplicon_coverage.txt"
         """
         awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$3 - 1, \$4, \$1 }' ${amplicons} > amplicons.bed
 
         extract-amplicon-regions \
+            --id ${id} \
             --bam ${bam} \
             --intervals amplicons.bed \
             --amplicon-bam ${output_bam} \
@@ -101,6 +99,33 @@ process extract_amplicon_regions {
             --maximum-distance 0 \
             --require-both-ends-anchored \
             --unmark-duplicate-reads
+        """
+}
+
+
+// generates pileup counts table for each position in the given set of amplicon
+// intervals
+process pileup_counts {
+    tag "${prefix}"
+
+    input:
+        tuple val(id), path(bam), path(bai), val(amplicon_group), path(amplicons), path(reference_sequence), path(reference_sequence_dictionary)
+
+    output:
+        path(pileup)
+
+    script:
+        prefix = "${id}.${amplicon_group}"
+        pileup = "${prefix}.pileup.txt"
+        """
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$5 - 1, \$6, \$1 }' ${amplicons} > targets.bed
+
+        pileup-counts \
+            --id ${id} \
+            --bam ${bam} \
+            --intervals targets.bed \
+            --reference-sequence ${reference_sequence} \
+            --pileup-counts ${pileup}
         """
 }
 
@@ -114,8 +139,11 @@ workflow {
     install_dir = channel.fromPath(projectDir, checkIfExists: true)
     sample_sheet = channel.fromPath(params.sampleSheet, checkIfExists: true)
     amplicon_details = channel.fromPath(params.ampliconDetails, checkIfExists: true)
-    reference_genome = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
-    reference_genome_index = channel.fromPath("${params.referenceGenomeFasta}.fai", checkIfExists: true)
+
+    reference_sequence = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
+    reference_sequence_index = channel.fromPath("${params.referenceGenomeFasta}.fai", checkIfExists: true)
+    reference_sequence_fasta_file = file("${params.referenceGenomeFasta}")
+    reference_sequence_dictionary = channel.fromPath("${params.referenceGenomeFasta}".replaceFirst("${reference_sequence_fasta_file.extension}\$", "dict"), checkIfExists: true)
 
     check_samples(install_dir, sample_sheet)
 
@@ -123,7 +151,7 @@ workflow {
     create_non_overlapping_amplicon_groups(
         install_dir,
         amplicon_details,
-        reference_genome_index
+        reference_sequence_index
     )
 
     // amplicon group channel in which each value is a tuple that includes
@@ -136,20 +164,30 @@ workflow {
     // BAM file channel created by reading the validated sample sheet
     bam = check_samples.out
         .splitCsv(header: true, quote: '"')
-        .map { row -> tuple("${row.ID}", file("${bamDir}${row.ID}.bam", checkIfExists: true)) }
-
-    // combine BAM file and amplicon group channels
-    // results in every combination of BAM file and amplicon group
-    bam_amplicon_groups = bam
-        .combine(amplicon_groups)
+        .map { row -> tuple("${row.ID}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
 
     // extract reads matching amplicons into a subset BAM file
-    extract_amplicon_regions(bam_amplicon_groups)
+    // for all pairs of BAM files and amplicon groups
+    extract_amplicon_regions(bam.combine(amplicon_groups))
+
+    // concatenate amplicon coverage files
+    amplicon_coverage = extract_amplicon_regions.out.coverage
+        .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
+
+    // generate pileup counts
+    pileup_counts(
+        extract_amplicon_regions.out.bam
+            .combine(reference_sequence)
+            .combine(reference_sequence_dictionary)
+    )
+
+    // concatenate pileup counts
+    amplicon_coverage = pileup_counts.out
+        .collectFile(name: "pileup.txt", keepHeader: true)
 
     // concatenate coverage files for each BAM file
-    amplicon_coverage = extract_amplicon_regions.out.coverage
-        .collectFile(keepHeader: true) { id, coverage -> [ "${id}.amplicon_coverage.txt", coverage ] }
-
+    // amplicon_coverage = extract_amplicon_regions.out.coverage
+    //     .collectFile(keepHeader: true) { id, coverage -> [ "${id}.amplicon_coverage.txt", coverage ] }
 }
 
 
@@ -163,11 +201,11 @@ def printParameterSummary() {
         Variant calling pipeline for amplicon sequencing data
         =====================================================
 
-        Sample sheet             : ${params.sampleSheet}
-        BAM directory            : ${params.bamDir}
-        Reference sequence FASTA : ${params.referenceGenomeFasta}
-        Output directory         : ${params.outputDir}
-        Output prefix            : ${params.outputPrefix}
+        Sample sheet              : ${params.sampleSheet}
+        BAM directory             : ${params.bamDir}
+        Reference genome sequence : ${params.referenceGenomeFasta}
+        Output directory          : ${params.outputDir}
+        Output prefix             : ${params.outputPrefix}
     """.stripIndent()
     log.info ""
 }
