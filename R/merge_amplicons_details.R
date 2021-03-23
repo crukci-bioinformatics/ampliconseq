@@ -1,6 +1,8 @@
-# Script for creating the amplicon details file required by the new version of
-# the ampliconseq pipeline from the amplicon and target intervals files used in
-# previous versions and the previous amplion details file (containing ID and
+#!/usr/bin/env Rscript
+
+# Creates the amplicon details file required by the new version of the
+# ampliconseq pipeline from the amplicon and target intervals files used in
+# previous versions and the previous amplion details file (containing ID and
 # gene columns).
 
 args <- commandArgs(trailingOnly = TRUE)

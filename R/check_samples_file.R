@@ -1,3 +1,8 @@
+#!/usr/bin/env Rscript
+
+# Checks the sample sheet file is valid, i.e. has the expected columns, etc.,
+# and outputs a cut-down version with only the expected columns.
+
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {

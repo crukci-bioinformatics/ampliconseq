@@ -1,5 +1,7 @@
-# Script for creating groups of non-overlapping groups of amplicons in which
-# no amplicon within a group overlaps with another amplicon in the same group.
+#!/usr/bin/env Rscript
+
+# Creates groups of non-overlapping groups of amplicons in which no amplicon
+# within a group overlaps with another amplicon in the same group.
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)

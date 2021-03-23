@@ -1,3 +1,5 @@
+#!/usr/bin/env Rscript
+
 # Extract the metrics table from the Picard metrics file and adds an ID column
 # containing the given identifier.
 
