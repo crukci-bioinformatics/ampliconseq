@@ -1,0 +1,30 @@
+# Extract the metrics table from the Picard metrics file and adds an ID column
+# containing the given identifier.
+
+# Note that if an ID column was already present in the Picard metrics file it
+# would be overwritten. Currently no Picard metrics files have an ID column.
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) < 2)
+{
+  stop("Usage: Rscript extract_picard_metrics.R id metrics_file output_file")
+}
+
+id <- args[1]
+metrics_file <- args[2]
+output_file <- args[3]
+
+suppressPackageStartupMessages(library(tidyverse))
+
+lines <- readLines(metrics_file)
+skip <- which(str_detect(lines, "^## METRICS CLASS"))
+n_max <- Inf
+empty_lines <- which(str_detect(lines[(skip + 1):length(lines)], "^$"))
+if (!is_empty(empty_lines)) n_max <- empty_lines[1] - 2
+
+metrics <- read_tsv(metrics_file, skip = skip, n_max = n_max, col_types = cols(.default = col_character()))
+
+metrics %>%
+  mutate(ID = id) %>%
+  select(ID, everything()) %>%
+  write_tsv(output_file, na = "")
