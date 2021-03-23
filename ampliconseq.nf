@@ -37,8 +37,9 @@ if (params.help) {
 // check sample sheet is valid a create a validated version to be used in
 // subsequent processes
 process check_samples {
+    executor = 'local'
+
     input:
-        path install_dir
         path sample_sheet
 
     output:
@@ -46,7 +47,7 @@ process check_samples {
 
     script:
         """
-        Rscript ${install_dir}/R/check_samples_file.R ${sample_sheet} samples.checked.csv
+        check_samples_file.R ${sample_sheet} samples.checked.csv
         """
 }
 
@@ -54,8 +55,9 @@ process check_samples {
 // create non-overlapping amplicon groups where none of the amplicons overlap
 // with another amplicon from the same group
 process create_non_overlapping_amplicon_groups {
+    executor = 'local'
+
     input:
-        path install_dir
         path amplicon_details
         path reference_sequence_index
 
@@ -65,7 +67,7 @@ process create_non_overlapping_amplicon_groups {
 
     script:
         """
-        Rscript ${install_dir}/R/create_non_overlapping_amplicon_groups.R ${amplicon_details} ${reference_sequence_index}
+        create_non_overlapping_amplicon_groups.R ${amplicon_details} ${reference_sequence_index}
         """
 }
 
@@ -74,6 +76,10 @@ process create_non_overlapping_amplicon_groups {
 // subset BAM file
 process extract_amplicon_regions {
     tag "${prefix}"
+
+    memory = { 2.GB * task.attempt }
+    time = { 1.hour * task.attempt }
+    maxRetries = 2
 
     input:
         tuple val(id), path(bam), val(amplicon_group), path(amplicons)
@@ -88,7 +94,7 @@ process extract_amplicon_regions {
         output_bai = "${prefix}.bai"
         coverage = "${prefix}.amplicon_coverage.txt"
         """
-        awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$3 - 1, \$4, \$1 }' ${amplicons} > amplicons.bed
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print \$2, \$3 - 1, \$4, \$1 }' ${amplicons} > amplicons.bed
 
         extract-amplicon-regions \
             --id ${id} \
@@ -108,8 +114,13 @@ process extract_amplicon_regions {
 process pileup_counts {
     tag "${prefix}"
 
+    cpus = 2
+    memory = { 4.GB * task.attempt }
+    time = { 1.hour * task.attempt }
+    maxRetries = 2
+
     input:
-        tuple val(id), path(bam), path(bai), val(amplicon_group), path(amplicons), path(reference_sequence), path(reference_sequence_dictionary)
+        tuple val(id), path(bam), path(bai), val(amplicon_group), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
         path(pileup)
@@ -118,7 +129,7 @@ process pileup_counts {
         prefix = "${id}.${amplicon_group}"
         pileup = "${prefix}.pileup.txt"
         """
-        awk 'BEGIN { FS = "\t"; OFS = "\t" } NR > 1 { print \$2, \$5 - 1, \$6, \$1 }' ${amplicons} > targets.bed
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print \$2, \$5 - 1, \$6, \$1 }' ${amplicons} > targets.bed
 
         pileup-counts \
             --id ${id} \
@@ -130,26 +141,90 @@ process pileup_counts {
 }
 
 
+// Picard alignment summary metrics
+process alignment_summary_metrics {
+    tag "${id}"
+
+    memory { 1.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), path(bam), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path(metrics)
+
+    script:
+        metrics = "${id}.alignment_summary_metrics.txt"
+        """
+        gatk CollectAlignmentSummaryMetrics \
+            --INPUT ${bam} \
+            --REFERENCE_SEQUENCE ${reference_sequence} \
+            --OUTPUT alignment_summary_metrics.txt
+
+        extract_picard_metrics.R ${id} alignment_summary_metrics.txt ${metrics}
+        """
+}
+
+
+// Picard targeted PCR metrics
+process targeted_pcr_metrics {
+    tag "${id}"
+
+    memory { 1.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), path(bam), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path(metrics)
+
+    script:
+        metrics = "${id}.targeted_pcr_metrics.txt"
+        """
+        cp ${reference_sequence_dictionary} amplicon_intervals.txt
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print \$2, \$3, \$4, "+", \$1 }' ${amplicons} >> amplicon_intervals.txt
+
+        cp ${reference_sequence_dictionary} target_intervals.txt
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print \$2, \$5, \$6, "+", \$1 }' ${amplicons} >> target_intervals.txt
+
+        gatk CollectTargetedPcrMetrics \
+            --INPUT ${bam} \
+            --REFERENCE_SEQUENCE ${reference_sequence} \
+            --AMPLICON_INTERVALS amplicon_intervals.txt \
+            --TARGET_INTERVALS target_intervals.txt \
+            --OUTPUT targeted_pcr_metrics.txt
+
+        extract_picard_metrics.R ${id} targeted_pcr_metrics.txt ${metrics}
+        """
+}
+
+
 // -----------------------------------------------------------------------------
 // workflow
 // -----------------------------------------------------------------------------
 
 workflow {
 
-    install_dir = channel.fromPath(projectDir, checkIfExists: true)
     sample_sheet = channel.fromPath(params.sampleSheet, checkIfExists: true)
     amplicon_details = channel.fromPath(params.ampliconDetails, checkIfExists: true)
 
-    reference_sequence = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
-    reference_sequence_index = channel.fromPath("${params.referenceGenomeFasta}.fai", checkIfExists: true)
     reference_sequence_fasta_file = file("${params.referenceGenomeFasta}")
+    reference_sequence_fasta = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
+    reference_sequence_index = channel.fromPath("${params.referenceGenomeFasta}.fai", checkIfExists: true)
     reference_sequence_dictionary = channel.fromPath("${params.referenceGenomeFasta}".replaceFirst("${reference_sequence_fasta_file.extension}\$", "dict"), checkIfExists: true)
+    reference_sequence = reference_sequence_fasta
+        .combine(reference_sequence_index)
+        .combine(reference_sequence_dictionary) 
 
-    check_samples(install_dir, sample_sheet)
+    // check sample sheet
+    check_samples(sample_sheet)
 
     // create groups of non-overlapping amplicons
     create_non_overlapping_amplicon_groups(
-        install_dir,
         amplicon_details,
         reference_sequence_index
     )
@@ -166,23 +241,32 @@ workflow {
         .splitCsv(header: true, quote: '"')
         .map { row -> tuple("${row.ID}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
 
+    // Picard alignment summary metrics
+    alignment_summary_metrics(bam.combine(reference_sequence))
+    collected_alignment_summary_metrics = alignment_summary_metrics.out
+        .collectFile(name: "alignment_summary_metrics.txt", keepHeader: true)
+
+    // Picard targeted PCR metrics
+    targeted_pcr_metrics(
+        bam
+            .combine(create_non_overlapping_amplicon_groups.out.amplicons)
+            .combine(reference_sequence)
+    )
+    collected_targeted_pcr_metrics = targeted_pcr_metrics.out
+        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true)
+
     // extract reads matching amplicons into a subset BAM file
     // for all pairs of BAM files and amplicon groups
     extract_amplicon_regions(bam.combine(amplicon_groups))
-
-    // concatenate amplicon coverage files
-    amplicon_coverage = extract_amplicon_regions.out.coverage
+    collected_amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
 
     // generate pileup counts
     pileup_counts(
         extract_amplicon_regions.out.bam
             .combine(reference_sequence)
-            .combine(reference_sequence_dictionary)
     )
-
-    // concatenate pileup counts
-    amplicon_coverage = pileup_counts.out
+    collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup.txt", keepHeader: true)
 
     // concatenate coverage files for each BAM file
