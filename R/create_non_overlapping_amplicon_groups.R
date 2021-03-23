@@ -4,11 +4,11 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  stop("Usage: Rscript create_non_overlapping_amplicon_groups.R amplicons_file reference_genome_index")
+  stop("Usage: Rscript create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index")
 }
 
 amplicons_file <- args[1]
-reference_genome_index_file <- args[2]
+reference_sequence_index_file <- args[2]
 
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -74,7 +74,7 @@ if (nrow(incorrect_target_coordinates)) {
 }
 
 # read reference genome index file
-chromosomes <- read_tsv(reference_genome_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
 
 # additional checks based on chromosomes from reference genome
 missing_chromosomes <- anti_join(amplicons, chromosomes, by = "Chromosome")
