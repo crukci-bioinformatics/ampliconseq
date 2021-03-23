@@ -81,12 +81,9 @@ public class PileupCounts extends CommandLineProgram {
 
     @Override
     protected Options createOptions() {
-        Options options = new Options();
+        Options options = super.createOptions();
 
-        Option option = new Option("h", "help", false, "Print command line options");
-        options.addOption(option);
-
-        option = new Option(null, "id", true,
+        Option option = new Option(null, "id", true,
                 "Identifier for this dataset; if included the pileup counts table will have an additional ID column (optional");
         options.addOption(option);
 

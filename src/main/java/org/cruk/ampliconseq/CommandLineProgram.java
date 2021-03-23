@@ -53,7 +53,17 @@ public abstract class CommandLineProgram {
      *
      * @return an Options object
      */
-    protected abstract Options createOptions();
+    protected Options createOptions() {
+        Options options = new Options();
+
+        Option option = new Option("h", "help", false, "Print command line options");
+        options.addOption(option);
+
+        option = new Option("v", "version", false, "Print version number");
+        options.addOption(option);
+
+        return options;
+    }
 
     /**
      * Extract option values.
@@ -72,7 +82,7 @@ public abstract class CommandLineProgram {
 
         Options options = createOptions();
 
-        checkForHelp(args, options);
+        checkForHelpOrVersion(args, options);
 
         try {
             CommandLineParser parser = new DefaultParser();
@@ -96,8 +106,8 @@ public abstract class CommandLineProgram {
      * @param args
      * @param options
      */
-    private void checkForHelp(String[] args, Options options) {
-        if (!options.hasLongOption("help")) {
+    private void checkForHelpOrVersion(String[] args, Options options) {
+        if (!options.hasLongOption("help") && !options.hasLongOption("version")) {
             return;
         }
 
@@ -113,6 +123,9 @@ public abstract class CommandLineProgram {
             CommandLine commandLine = parser.parse(checkForHelpOptions, args, true);
             if (commandLine.hasOption("help")) {
                 printUsage(options, System.out);
+                System.exit(0);
+            } else if (commandLine.hasOption("version")) {
+                printVersionInformation(System.out);
                 System.exit(0);
             }
         } catch (ParseException e) {
@@ -132,6 +145,22 @@ public abstract class CommandLineProgram {
         String syntax = "java " + getClass().getName() + " [options]";
         String description = "\n" + getHelpDescription() + "\n\n";
         helpFormatter.printHelp(out, 80, syntax, description, options, 4, 8, "", false);
+        out.println();
+        out.flush();
+    }
+
+    /**
+     * Prints version information and exits.
+     * 
+     * @param stream
+     */
+    private void printVersionInformation(PrintStream stream) {
+        PrintWriter out = new PrintWriter(new OutputStreamWriter(stream));
+        out.print(getClass().getPackage().getImplementationTitle());
+        out.print(" ");
+        out.print(getClass().getPackage().getImplementationVersion());
+        out.print(" - ");
+        out.println(getClass().getName());
         out.println();
         out.flush();
     }
