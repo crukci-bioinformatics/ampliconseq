@@ -9,7 +9,8 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  stop("Usage: Rscript extract_picard_metrics.R id metrics_file output_file")
+  message("Usage: Rscript extract_picard_metrics.R id metrics_file output_file")
+  quit(status = 1)
 }
 
 id <- args[1]

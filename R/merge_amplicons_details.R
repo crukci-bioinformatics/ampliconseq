@@ -8,7 +8,8 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 4)
 {
-  stop("Usage: Rscript merge_amplicons_details.R amplicon_intervals_file target_intervals_file amplicon_details_file output_csv_file")
+  message("Usage: Rscript merge_amplicons_details.R amplicon_intervals_file target_intervals_file amplicon_details_file output_csv_file")
+  quit(status = 1)
 }
 
 amplicon_intervals_file <- args[1]

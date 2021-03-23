@@ -6,7 +6,8 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  stop("Usage: Rscript check_samples_file.R samples_file output_samples_file")
+  message("Usage: Rscript check_samples_file.R samples_file output_samples_file")
+  quit(status = 1)
 }
 
 samples_file <- args[1]
