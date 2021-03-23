@@ -160,7 +160,7 @@ public abstract class CommandLineProgram {
         out.print(" ");
         out.print(getClass().getPackage().getImplementationVersion());
         out.print(" - ");
-        out.println(getClass().getName());
+        out.print(getClass().getName());
         out.println();
         out.flush();
     }
