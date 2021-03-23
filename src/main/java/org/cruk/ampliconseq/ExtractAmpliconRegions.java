@@ -59,6 +59,7 @@ import htsjdk.samtools.util.Interval;
 public class ExtractAmpliconRegions extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
+    private String id;
     private File bamFile;
     private File ampliconsFile;
     private int maximumDistance = 0;
@@ -83,6 +84,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         Options options = new Options();
 
         Option option = new Option("h", "help", false, "Print command line options");
+        options.addOption(option);
+
+        option = new Option(null, "id", true,
+                "Identifier for this dataset; if included the coverage summary will have an additional ID column (optional");
         options.addOption(option);
 
         option = new Option("i", "bam", true,
@@ -126,6 +131,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
     @Override
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
+        id = commandLine.getOptionValue("id");
         bamFile = (File) commandLine.getParsedOptionValue("bam");
         ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
         if (commandLine.hasOption("maximum-distance")) {
@@ -335,6 +341,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * @throws IOException
      */
     private void writeCoverageHeader(BufferedWriter writer) throws IOException {
+        if (id != null) {
+            writer.write("ID");
+            writer.write("\t");
+        }
         writer.write("Chromosome");
         writer.write("\t");
         writer.write("Start");
@@ -366,8 +376,29 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
     private void writeCoverage(BufferedWriter writer, Interval amplicon, Map<String, Integer> ampliconReadFlags,
             int baseCount) throws IOException {
 
+        if (id != null) {
+            writer.write(id);
+            writer.write("\t");
+        }
+
+        writer.write(amplicon.getContig());
+        writer.write("\t");
+        writer.write(Integer.toString(amplicon.getStart()));
+        writer.write("\t");
+        writer.write(Integer.toString(amplicon.getEnd()));
+
         int length = amplicon.getEnd() - amplicon.getStart() + 1;
+
+        writer.write("\t");
+        writer.write(Integer.toString(length));
+
+        writer.write("\t");
+        writer.write(amplicon.getName());
+
         double meanCoverage = baseCount / (double) length;
+
+        writer.write("\t");
+        writer.write(Float.toString((float) meanCoverage));
 
         // count reads matching at least one end of the amplicon and pairs
         // anchored to both ends
@@ -382,21 +413,11 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             }
         }
 
-        writer.write(amplicon.getContig());
-        writer.write("\t");
-        writer.write(Integer.toString(amplicon.getStart()));
-        writer.write("\t");
-        writer.write(Integer.toString(amplicon.getEnd()));
-        writer.write("\t");
-        writer.write(Integer.toString(length));
-        writer.write("\t");
-        writer.write(amplicon.getName());
-        writer.write("\t");
-        writer.write(Float.toString((float) meanCoverage));
         writer.write("\t");
         writer.write(Integer.toString(readCount));
         writer.write("\t");
         writer.write(Integer.toString(anchoredBothEndsCount));
+
         writer.write("\n");
     }
 }

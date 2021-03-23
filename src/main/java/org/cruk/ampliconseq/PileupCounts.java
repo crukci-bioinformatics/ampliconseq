@@ -60,6 +60,7 @@ import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
 public class PileupCounts extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
+    private String id;
     private File bamFile;
     private File ampliconsFile;
     private File referenceSequenceFile;
@@ -83,6 +84,10 @@ public class PileupCounts extends CommandLineProgram {
         Options options = new Options();
 
         Option option = new Option("h", "help", false, "Print command line options");
+        options.addOption(option);
+
+        option = new Option(null, "id", true,
+                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (optional");
         options.addOption(option);
 
         option = new Option("i", "bam", true,
@@ -124,6 +129,7 @@ public class PileupCounts extends CommandLineProgram {
 
     @Override
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
+        id = commandLine.getOptionValue("id");
         bamFile = (File) commandLine.getParsedOptionValue("bam");
         ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
         referenceSequenceFile = (File) commandLine.getParsedOptionValue("reference-sequence");
@@ -200,6 +206,10 @@ public class PileupCounts extends CommandLineProgram {
      * @throws IOException
      */
     private void writeHeader(BufferedWriter writer) throws IOException {
+        if (id != null) {
+            writer.write("ID");
+            writer.write("\t");
+        }
         writer.write("Chromosome");
         writer.write("\t");
         writer.write("Position");
@@ -225,6 +235,11 @@ public class PileupCounts extends CommandLineProgram {
     private void writePileupCounts(BufferedWriter writer,
             SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference, List<RecordAndOffset> filteredPileup)
             throws IOException {
+
+        if (id != null) {
+            writer.write(id);
+            writer.write("\t");
+        }
 
         LocusInfo locusInfo = locusAndReference.getLocus();
 
