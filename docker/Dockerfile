@@ -33,10 +33,13 @@ COPY conda.yml .
 
 RUN conda env update -n root -f conda.yml && conda clean -a
 
-ADD "https://api.github.com/repos/crukci-bioinformatics/ampliconseq/commits?per_page=1" /opt/ampliconseq_latest_commit
-RUN git clone https://github.com/crukci-bioinformatics/ampliconseq /opt/ampliconseq && \
-    cd /opt/ampliconseq && \
-    mvn package
+ADD "https://api.github.com/repos/crukci-bioinformatics/ampliconseq/commits?per_page=1" /opt/ampliconseq/.latest_commit
+RUN git clone https://github.com/crukci-bioinformatics/ampliconseq /opt/ampliconseq/build && \
+    cd /opt/ampliconseq/build && \
+    mvn package && \
+    cd .. && \
+    tar zxf build/target/ampliconseq-*-tools.tar.gz && \
+    ln -s ampliconseq-* tools
 
-ENV PATH /opt/ampliconseq/target/tools/bin:${PATH}
+ENV PATH /opt/ampliconseq/tools/bin:${PATH}
 
