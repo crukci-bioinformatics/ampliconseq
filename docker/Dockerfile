@@ -39,7 +39,7 @@ RUN git clone https://github.com/crukci-bioinformatics/ampliconseq /opt/amplicon
     mvn package && \
     cd .. && \
     tar zxf build/target/ampliconseq-*-tools.tar.gz && \
-    ln -s ampliconseq-* tools
+    ln -s ampliconseq-* current
 
-ENV PATH /opt/ampliconseq/tools/bin:${PATH}
+ENV PATH ${PATH}:/opt/ampliconseq/current/bin
 
