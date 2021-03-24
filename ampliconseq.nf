@@ -145,7 +145,7 @@ process pileup_counts {
 process alignment_summary_metrics {
     tag "${id}"
 
-    memory { 1.GB * task.attempt }
+    memory { 2.GB * task.attempt }
     time { 1.hour * task.attempt }
     maxRetries 2
 
@@ -172,7 +172,7 @@ process alignment_summary_metrics {
 process targeted_pcr_metrics {
     tag "${id}"
 
-    memory { 1.GB * task.attempt }
+    memory { 2.GB * task.attempt }
     time { 1.hour * task.attempt }
     maxRetries 2
 
