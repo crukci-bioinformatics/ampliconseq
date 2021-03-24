@@ -6,7 +6,7 @@
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) < 2)
 {
-  message("Usage: Rscript create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index")
+  message("Usage: create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index")
   quit(status = 1)
 }
 
