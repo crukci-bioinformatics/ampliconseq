@@ -21,12 +21,6 @@
             <lineEnding>unix</lineEnding>
             <fileMode>0775</fileMode>
         </fileSet>
-        <fileSet>
-            <directory>${project.basedir}/R</directory>
-            <outputDirectory>bin</outputDirectory>
-            <lineEnding>unix</lineEnding>
-            <fileMode>0775</fileMode>
-        </fileSet>
     </fileSets>
 
     <files>
