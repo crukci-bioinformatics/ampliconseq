@@ -84,7 +84,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         Options options = super.createOptions();
 
         Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the coverage summary will have an additional ID column (optional");
+                "Identifier for this dataset; if included the coverage summary will have an additional ID column (optional)");
         options.addOption(option);
 
         option = new Option("i", "bam", true,
