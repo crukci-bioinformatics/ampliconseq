@@ -106,6 +106,10 @@
                             <mainClass>org.cruk.ampliconseq.PileupCounts</mainClass>
                             <id>pileup-counts</id>
                         </program>
+                        <program>
+                            <mainClass>org.cruk.ampliconseq.AnnotateVcfWithAmpliconIds</mainClass>
+                            <id>annotate-vcf-with-amplicon-ids</id>
+                        </program>
                     </programs>
                 </configuration>
             </plugin>
