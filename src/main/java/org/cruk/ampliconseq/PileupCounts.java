@@ -52,8 +52,11 @@ import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
 
 /**
- * Utility for generating a pileup summary for all loci within a specified set
- * of intervals.
+ * Command line tool for generating a pileup summary for all loci within a
+ * specified set of intervals.
+ *
+ * Each interval is processed separately so that the interval name can be
+ * included in the output.
  *
  * @author eldrid01
  */
@@ -62,7 +65,7 @@ public class PileupCounts extends CommandLineProgram {
 
     private String id;
     private File bamFile;
-    private File ampliconsFile;
+    private File intervalsFile;
     private File referenceSequenceFile;
     private File pileupCountsFile;
     private int minimumBaseQuality = 0;
@@ -84,7 +87,8 @@ public class PileupCounts extends CommandLineProgram {
         Options options = super.createOptions();
 
         Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (optional)");
+                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (required)");
+        option.setRequired(true);
         options.addOption(option);
 
         option = new Option("i", "input", true,
@@ -128,7 +132,7 @@ public class PileupCounts extends CommandLineProgram {
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
         id = commandLine.getOptionValue("id");
         bamFile = (File) commandLine.getParsedOptionValue("input");
-        ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
+        intervalsFile = (File) commandLine.getParsedOptionValue("intervals");
         referenceSequenceFile = (File) commandLine.getParsedOptionValue("reference-sequence");
         pileupCountsFile = (File) commandLine.getParsedOptionValue("output");
     }
@@ -142,7 +146,7 @@ public class PileupCounts extends CommandLineProgram {
         ProgressLogger progress = new ProgressLogger(logger, 100, "loci");
 
         IOUtil.assertFileIsReadable(bamFile);
-        IOUtil.assertFileIsReadable(ampliconsFile);
+        IOUtil.assertFileIsReadable(intervalsFile);
         IOUtil.assertFileIsReadable(referenceSequenceFile);
         IOUtil.assertFileIsWritable(pileupCountsFile);
 
@@ -152,44 +156,54 @@ public class PileupCounts extends CommandLineProgram {
         ReferenceSequenceFileWalker referenceSequenceFileWalker = new ReferenceSequenceFileWalker(
                 referenceSequenceFile);
 
-        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
-        IntervalList intervalList = new IntervalList(referenceSequenceFileWalker.getSequenceDictionary());
-        intervalList.addall(amplicons);
-
-        SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
-
-        // exclude reads that are marked as failing platform/vendor quality checks
-        locusIterator.setIncludeNonPfReads(false);
-
-        // exclude secondary alignments and reads marked as duplicates
-        locusIterator.setSamFilters(Arrays.asList(new SecondaryAlignmentFilter(), new DuplicateReadFilter()));
-
-        SamLocusAndReferenceIterator locusAndReferenceIterator = new SamLocusAndReferenceIterator(
-                referenceSequenceFileWalker, locusIterator);
+        List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
 
         BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
 
         try {
             writeHeader(writer);
 
-            for (SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference : locusAndReferenceIterator) {
+            for (Interval interval : intervals) {
 
-                List<RecordAndOffset> pileup = locusAndReference.getRecordAndOffsets();
+                logger.info("Interval: " + interval.getName());
 
-                List<RecordAndOffset> filteredPileup = PileupUtils.filterLowQualityScores(pileup, minimumBaseQuality,
-                        minimumMappingQuality);
+                IntervalList intervalList = new IntervalList(referenceSequenceFileWalker.getSequenceDictionary());
+                intervalList.add(interval);
 
-                filteredPileup = PileupUtils.filterOverlappingFragments(filteredPileup);
+                SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
 
-                writePileupCounts(writer, locusAndReference, filteredPileup);
+                // exclude reads that are marked as failing platform/vendor quality checks
+                locusIterator.setIncludeNonPfReads(false);
 
-                LocusInfo locusInfo = locusAndReference.getLocus();
-                progress.record(locusInfo.getContig(), locusInfo.getPosition());
+                // exclude secondary alignments and reads marked as duplicates
+                locusIterator.setSamFilters(Arrays.asList(new SecondaryAlignmentFilter(), new DuplicateReadFilter()));
+
+                SamLocusAndReferenceIterator locusAndReferenceIterator = new SamLocusAndReferenceIterator(
+                        referenceSequenceFileWalker, locusIterator);
+
+                for (SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference : locusAndReferenceIterator) {
+
+                    List<RecordAndOffset> pileup = locusAndReference.getRecordAndOffsets();
+
+                    List<RecordAndOffset> filteredPileup = PileupUtils.filterLowQualityScores(pileup,
+                            minimumBaseQuality, minimumMappingQuality);
+
+                    filteredPileup = PileupUtils.filterOverlappingFragments(filteredPileup);
+
+                    writePileupCounts(writer, interval, locusAndReference, filteredPileup);
+
+                    LocusInfo locusInfo = locusAndReference.getLocus();
+                    progress.record(locusInfo.getContig(), locusInfo.getPosition());
+                }
+
+                locusAndReferenceIterator.close();
+                locusIterator.close();
             }
 
-            locusAndReferenceIterator.close();
             CloserUtil.close(reader);
+
             writer.close();
+
         } catch (IOException e) {
             logger.error(e);
             System.exit(1);
@@ -203,10 +217,10 @@ public class PileupCounts extends CommandLineProgram {
      * @throws IOException
      */
     private void writeHeader(BufferedWriter writer) throws IOException {
-        if (id != null) {
-            writer.write("ID");
-            writer.write("\t");
-        }
+        writer.write("ID");
+        writer.write("\t");
+        writer.write("Interval");
+        writer.write("\t");
         writer.write("Chromosome");
         writer.write("\t");
         writer.write("Position");
@@ -229,17 +243,18 @@ public class PileupCounts extends CommandLineProgram {
         writer.write("\n");
     }
 
-    private void writePileupCounts(BufferedWriter writer,
+    private void writePileupCounts(BufferedWriter writer, Interval interval,
             SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference, List<RecordAndOffset> filteredPileup)
             throws IOException {
 
-        if (id != null) {
-            writer.write(id);
-            writer.write("\t");
-        }
+        writer.write(id);
+
+        writer.write("\t");
+        writer.write(interval.getName());
 
         LocusInfo locusInfo = locusAndReference.getLocus();
 
+        writer.write("\t");
         writer.write(locusInfo.getContig());
         writer.write("\t");
         writer.write(Integer.toString(locusInfo.getPosition()));
