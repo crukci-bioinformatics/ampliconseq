@@ -127,10 +127,10 @@ public class PileupCounts extends CommandLineProgram {
     @Override
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
         id = commandLine.getOptionValue("id");
-        bamFile = (File) commandLine.getParsedOptionValue("bam");
+        bamFile = (File) commandLine.getParsedOptionValue("input");
         ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
         referenceSequenceFile = (File) commandLine.getParsedOptionValue("reference-sequence");
-        pileupCountsFile = (File) commandLine.getParsedOptionValue("pileup-counts");
+        pileupCountsFile = (File) commandLine.getParsedOptionValue("output");
     }
 
     /**

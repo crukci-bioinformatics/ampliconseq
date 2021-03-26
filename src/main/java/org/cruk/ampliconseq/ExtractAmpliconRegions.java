@@ -129,14 +129,14 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
     @Override
     protected void extractOptionValues(CommandLine commandLine) throws ParseException {
         id = commandLine.getOptionValue("id");
-        bamFile = (File) commandLine.getParsedOptionValue("bam");
+        bamFile = (File) commandLine.getParsedOptionValue("input");
         ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
         if (commandLine.hasOption("maximum-distance")) {
             maximumDistance = ((Number) commandLine.getParsedOptionValue("maximum-distance")).intValue();
         }
         requireBothEndsAnchored = commandLine.hasOption("require-both-ends-anchored");
         unmarkDuplicateReads = commandLine.hasOption("unmark-duplicate-reads");
-        ampliconBamFile = (File) commandLine.getParsedOptionValue("amplicon-bam");
+        ampliconBamFile = (File) commandLine.getParsedOptionValue("output");
         ampliconCoverageFile = (File) commandLine.getParsedOptionValue("coverage");
     }
 
