@@ -28,7 +28,7 @@ import org.apache.logging.log4j.Logger;
 import htsjdk.samtools.util.AbstractProgressLogger;
 
 /**
- * Concreate implementation of AbstractProgressLogger using log4j for logging.
+ * Concrete implementation of AbstractProgressLogger using log4j for logging.
  *
  * Based on ProgressLogger from htsjdk but using log4j instead of the htsjdk Log
  * wrapper around System.err.
