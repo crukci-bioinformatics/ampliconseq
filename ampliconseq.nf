@@ -12,6 +12,7 @@ params.sampleSheet           = "${launchDir}/samples.csv"
 params.bamDir                = "${launchDir}/bam"
 params.ampliconDetails       = "${launchDir}/reference_data/amplicons.csv"
 params.referenceGenomeFasta  = "${launchDir}/reference_data/GRCh37.fa"
+params.minimumAlleleFraction = 0.01
 params.outputDir             = "${launchDir}"
 params.outputPrefix          = ""
 
@@ -98,9 +99,9 @@ process extract_amplicon_regions {
 
         extract-amplicon-regions \
             --id ${id} \
-            --bam ${bam} \
+            --input ${bam} \
             --intervals amplicons.bed \
-            --amplicon-bam ${output_bam} \
+            --output ${output_bam} \
             --coverage ${coverage} \
             --maximum-distance 0 \
             --require-both-ends-anchored \
@@ -133,10 +134,78 @@ process pileup_counts {
 
         pileup-counts \
             --id ${id} \
-            --bam ${bam} \
+            --input ${bam} \
             --intervals targets.bed \
             --reference-sequence ${reference_sequence} \
-            --pileup-counts ${pileup}
+            --output ${pileup}
+        """
+}
+
+
+// runs the specified variant caller
+process call_variants {
+    tag "${prefix}"
+
+    cpus = 2
+    memory = { 4.GB * task.attempt }
+    time = { 1.hour * task.attempt }
+    maxRetries = 2
+
+    input:
+        tuple val(id), path(bam), path(bai), val(amplicon_group), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        tuple val(id), path(vcf)
+
+    script:
+        prefix = "${id}.${amplicon_group}"
+        vcf = "${prefix}.vcf"
+        """
+        awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print \$2, \$5 - 1, \$6, \$1 }' ${amplicons} > targets.bed
+
+        vardict-java \
+            -b ${bam} \
+            -G ${reference_sequence} \
+            -N ${id} \
+            -f ${params.minimumAlleleFraction} \
+            -z -c 1 -S 2 -E 3 -g 4 targets.bed \
+            > ${prefix}.vardict.txt
+
+        cat ${prefix}.vardict.txt \
+            | teststrandbias.R \
+            > ${prefix}.vardict.teststrandbias.txt
+
+        cat ${prefix}.vardict.teststrandbias.txt \
+            | var2vcf_valid.pl -N ${id} -E -f ${params.minimumAlleleFraction} \
+            > ${prefix}.vardict.vcf
+
+        annotate-vcf-with-amplicon-ids \
+            --input ${prefix}.vardict.vcf \
+            --intervals targets.bed \
+            --output ${vcf}
+        """
+}
+
+
+// merge VCF files for a sample from groups of non-overlapping amplicons
+process merge_sample_vcfs {
+    tag "${id}"
+    publishDir "${params.outputDir}/vcf", mode: 'copy'
+
+    input:
+        tuple val(id), path(vcfs), path(reference_sequence_dictionary)
+
+    output:
+        tuple val(id), path(merged_vcf)
+
+    script:
+        merged_vcf = "${id}.vcf"
+        """
+        echo ${vcfs} | tr ' ' '\n' > input_vcf_list.txt
+        gatk MergeVcfs \
+            --INPUT input_vcf_list.txt \
+            --SEQUENCE_DICTIONARY ${reference_sequence_dictionary} \
+            --OUTPUT ${merged_vcf}
         """
 }
 
@@ -269,6 +338,19 @@ workflow {
     collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup.txt", keepHeader: true)
 
+    // VarDict variant calling
+    call_variants(
+        extract_amplicon_regions.out.bam
+            .combine(reference_sequence)
+    )
+
+    // merge VCF files for each sample
+    merge_sample_vcfs(
+        call_variants.out
+            .groupTuple()
+            .combine(reference_sequence_dictionary)
+    )
+
     // concatenate coverage files for each BAM file
     // amplicon_coverage = extract_amplicon_regions.out.coverage
     //     .collectFile(keepHeader: true) { id, coverage -> [ "${id}.amplicon_coverage.txt", coverage ] }
@@ -287,7 +369,9 @@ def printParameterSummary() {
 
         Sample sheet              : ${params.sampleSheet}
         BAM directory             : ${params.bamDir}
+        Amplicon details          : ${params.ampliconDetails}
         Reference genome sequence : ${params.referenceGenomeFasta}
+        Minimum allele fraction   : ${params.minimumAlleleFraction}
         Output directory          : ${params.outputDir}
         Output prefix             : ${params.outputPrefix}
     """.stripIndent()
@@ -310,6 +394,7 @@ def helpMessage() {
             --bam-dir                     Directory in which BAM files are located
             --amplicon-details            CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
             --reference-genome-fasta      FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
+            --minimum-allele-fraction     Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
             --output-dir                  Directory to which output files are written
             --output-prefix               Prefix for output file names
 
@@ -318,12 +403,13 @@ def helpMessage() {
         above options:
 
         params {
-            sampleSheet          = "samples.csv"
-            bamDir               = "bam"
-            ampliconDetails      = "amplicons.csv"
-            referenceGenomeFasta = "/reference_data/GRCh37.fa"
-            outputDir            = "results"
-            outputPrefix         = ""
+            sampleSheet           = "samples.csv"
+            bamDir                = "bam"
+            ampliconDetails       = "amplicons.csv"
+            referenceGenomeFasta  = "/reference_data/GRCh37.fa"
+            minimumAlleleFraction = 0.01
+            outputDir             = "results"
+            outputPrefix          = ""
         }
 
         and run as follows:
@@ -331,4 +417,3 @@ def helpMessage() {
     """.stripIndent()
     log.info ""
 }
-
