@@ -84,11 +84,11 @@ public class PileupCounts extends CommandLineProgram {
         Options options = super.createOptions();
 
         Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (optional");
+                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (optional)");
         options.addOption(option);
 
-        option = new Option("i", "bam", true,
-                "BAM input file which must be in coordinate sort order and indexed (required)");
+        option = new Option("i", "input", true,
+                "Input BAM file which must be in coordinate sort order and indexed (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
@@ -104,8 +104,8 @@ public class PileupCounts extends CommandLineProgram {
         option.setType(File.class);
         options.addOption(option);
 
-        option = new Option("o", "pileup-counts", true,
-                "The output BAM file containing a pileup summary table with read counts for each position and allele (required)");
+        option = new Option("o", "output", true,
+                "The output pileup summary table with read counts for each position and allele (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);

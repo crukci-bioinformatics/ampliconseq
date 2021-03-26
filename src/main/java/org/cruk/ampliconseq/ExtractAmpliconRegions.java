@@ -87,8 +87,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
                 "Identifier for this dataset; if included the coverage summary will have an additional ID column (optional)");
         options.addOption(option);
 
-        option = new Option("i", "bam", true,
-                "BAM input file which must be in coordinate sort order and indexed (required)");
+        option = new Option("i", "input", true,
+                "Input BAM file which must be in coordinate sort order and indexed (required)");
         option.setRequired(true);
         option.setType(File.class);
         options.addOption(option);
@@ -112,7 +112,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         option = new Option(null, "unmark-duplicate-reads", false, "Remove duplicate flag, if set, from reads");
         options.addOption(option);
 
-        option = new Option("o", "amplicon-bam", true,
+        option = new Option("o", "output", true,
                 "The output BAM file containing reads that match the amplicon coordinates (required)");
         option.setRequired(true);
         option.setType(File.class);
