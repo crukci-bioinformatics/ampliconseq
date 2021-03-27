@@ -50,6 +50,6 @@ gatk VariantsToTable \
     --genotype-fields DP \
     --asGenotypeFieldsToTake AD
 
-echo "ID    Amplicon    Chromosome  Position    Ref Alt Quality Filters Type    Multiallelic    Depth   Ref count   Alt count" > !{id}.variants.txt
+echo "ID	Amplicon	Chromosome	Position	Ref	Alt	Quality	Filters	Type	Multiallelic	Depth	Ref count	Alt count" > !{id}.variants.txt
 awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 && $1 != "NA" { split($11, ad, ","); print "!{id}", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ad[1], ad[2] }' !{id}.variant_table.txt >> !{id}.variants.txt
 
