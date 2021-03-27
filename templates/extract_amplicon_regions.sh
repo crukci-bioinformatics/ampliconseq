@@ -15,4 +15,4 @@ do
 		--unmark-duplicate-reads
 done
 
-awk 'NR == 1 || FNR > 1' ${id}.*.amplicon_coverage.txt > ${id}.amplicon_coverage.txt
+awk 'NR == 1 || FNR > 1' !{id}.*.amplicon_coverage.txt > !{id}.amplicon_coverage.txt
