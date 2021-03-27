@@ -4,14 +4,15 @@
 # within a group overlaps with another amplicon in the same group.
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2)
+if (length(args) < 3)
 {
-  message("Usage: create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index")
+  message("Usage: create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index amplicon_groups_file")
   quit(status = 1)
 }
 
 amplicons_file <- args[1]
 reference_sequence_index_file <- args[2]
+amplicon_groups_file <- args[3]
 
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -141,13 +142,5 @@ message("Number of non-overlapping interval groups: ", number_of_groups)
 
 amplicons <- left_join(amplicons, groups, by = "ID")
 
-write_tsv(amplicons, "amplicon_groups.txt")
-
-
-# write separate amplicon details files for each group
-for (group in 1:number_of_groups) {
-  amplicons %>%
-    filter(Group == group) %>%
-    write_tsv(str_c("amplicon_groups.", group, ".txt"))
-}
+write_tsv(amplicons, amplicon_groups_file)
 
