@@ -115,10 +115,10 @@ process pileup_counts {
 }
 
 
-// call variants using VarDict
-process vardict {
+// call variants
+process call_variants {
     tag "${id}"
-    publishDir "${params.outputDir}/vcf", mode: 'copy'
+    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
 
     cpus 2
     memory { 4.GB * task.attempt }
@@ -129,7 +129,8 @@ process vardict {
         tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path "${id}.vardict.vcf"
+        path "${id}.vcf", emit: vcf
+        path "${id}.variants.txt", emit: variants
 
     shell:
         template "vardict.sh"
@@ -190,7 +191,7 @@ workflow {
     // Picard alignment summary metrics
     picard_metrics(bam.combine(amplicon_groups).combine(reference_sequence))
 
-    // collect Picard metrics
+    // collect Picard metrics for all samples
     collected_alignment_metrics = picard_metrics.out.alignment_metrics
         .collectFile(name: "alignment_metrics.txt", keepHeader: true)
     collected_alignment_metrics = picard_metrics.out.targeted_pcr_metrics
@@ -200,19 +201,23 @@ workflow {
     // each group of non-overlapping amplicons
     extract_amplicon_regions(bam.combine(amplicon_groups))
 
-    // collect amplicon coverage data
+    // collect amplicon coverage data for all samples
     collected_amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
 
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
 
-    // collect pileup counts
+    // collect pileup counts for all samples
     collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup_counts.txt", keepHeader: true)
 
     // call variants with VarDict
-    vardict(extract_amplicon_regions.out.bam.combine(reference_sequence))
+    call_variants(extract_amplicon_regions.out.bam.combine(reference_sequence))
+
+    // collect variant calls for all samples
+    collected_variants = call_variants.out.variants
+        .collectFile(name: "variants.txt", keepHeader: true)
 }
 
 
