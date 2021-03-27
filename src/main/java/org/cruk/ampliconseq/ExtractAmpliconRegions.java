@@ -84,7 +84,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         Options options = super.createOptions();
 
         Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the coverage summary will have an additional ID column (optional)");
+                "Identifier for this dataset; if included the coverage summary will have an additional ID column (required)");
+        option.setRequired(true);
         options.addOption(option);
 
         option = new Option("i", "input", true,
@@ -338,10 +339,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * @throws IOException
      */
     private void writeCoverageHeader(BufferedWriter writer) throws IOException {
-        if (id != null) {
-            writer.write("ID");
-            writer.write("\t");
-        }
+        writer.write("ID");
+        writer.write("\t");
+        writer.write("Amplicon");
+        writer.write("\t");
         writer.write("Chromosome");
         writer.write("\t");
         writer.write("Start");
@@ -349,8 +350,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         writer.write("End");
         writer.write("\t");
         writer.write("Length");
-        writer.write("\t");
-        writer.write("Name");
         writer.write("\t");
         writer.write("Mean coverage");
         writer.write("\t");
@@ -373,10 +372,11 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
     private void writeCoverage(BufferedWriter writer, Interval amplicon, Map<String, Integer> ampliconReadFlags,
             int baseCount) throws IOException {
 
-        if (id != null) {
-            writer.write(id);
-            writer.write("\t");
-        }
+        writer.write(id);
+        writer.write("\t");
+
+        writer.write("\t");
+        writer.write(amplicon.getName());
 
         writer.write(amplicon.getContig());
         writer.write("\t");
@@ -388,9 +388,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
         writer.write("\t");
         writer.write(Integer.toString(length));
-
-        writer.write("\t");
-        writer.write(amplicon.getName());
 
         double meanCoverage = baseCount / (double) length;
 
