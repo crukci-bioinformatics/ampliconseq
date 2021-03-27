@@ -373,11 +373,11 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             int baseCount) throws IOException {
 
         writer.write(id);
-        writer.write("\t");
 
         writer.write("\t");
         writer.write(amplicon.getName());
 
+        writer.write("\t");
         writer.write(amplicon.getContig());
         writer.write("\t");
         writer.write(Integer.toString(amplicon.getStart()));
