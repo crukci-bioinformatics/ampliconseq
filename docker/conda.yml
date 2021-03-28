@@ -1,9 +1,17 @@
 name: ampliconseq
 channels:
-  - defaults
-  - bioconda
   - conda-forge
+  - bioconda
+  - defaults
 dependencies:
-  - gatk4=4.2.0.0
-  - freebayes=1.3.5
-  - vardict-java=1.8.2
+  - conda-forge::r-base=4.0.3
+  - conda-forge::r-tidyverse=1.3.0
+  - conda-forge::r-optparse=1.6.6
+  - conda-forge::r-base64=2.0
+  - conda-forge::r-fitdistrplus=1.1_3
+  - conda-forge::r-nozzle.r1=1.1_1
+  - bioconda::bioconductor-complexheatmap=2.6.2
+  - bioconda::gatk4=4.2.0.0
+  - bioconda::freebayes=1.3.5
+  - bioconda::vardict-java=1.8.2
+  - bioconda::ensembl-vep=103.1
