@@ -58,7 +58,7 @@ def printParameterSummary() {
         Variant calling pipeline for amplicon sequencing data
         =====================================================
 
-       	Ensembl VEP cache download
+        Ensembl VEP cache download
 
         VEP cache directory : ${params.cacheDir}
         Species             : ${params.species}
