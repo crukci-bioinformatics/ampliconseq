@@ -3,19 +3,10 @@
 // enable DSL 2 syntax
 nextflow.enable.dsl = 2
 
-// -----------------------------------------------------------------------------
-// default parameter settings
-// -----------------------------------------------------------------------------
 
-params.help                  = false
-params.sampleSheet           = "${launchDir}/samples.csv"
-params.bamDir                = "${launchDir}/bam"
-params.ampliconDetails       = "${launchDir}/reference_data/amplicons.csv"
-params.referenceGenomeFasta  = "${launchDir}/reference_data/GRCh37.fa"
-params.minimumAlleleFraction = 0.01
-params.outputDir             = "${launchDir}"
-params.outputPrefix          = ""
-
+// -----------------------------------------------------------------------------
+// show settings and/or help
+// -----------------------------------------------------------------------------
 
 printParameterSummary()
 
@@ -236,6 +227,9 @@ def printParameterSummary() {
         Amplicon details          : ${params.ampliconDetails}
         Reference genome sequence : ${params.referenceGenomeFasta}
         Minimum allele fraction   : ${params.minimumAlleleFraction}
+        VEP cache directory       : ${params.vepCacheDir}
+        Species                   : ${params.vepSpecies}
+        Assembly                  : ${params.vepAssembly}
         Output directory          : ${params.outputDir}
         Output prefix             : ${params.outputPrefix}
     """.stripIndent()
@@ -259,6 +253,9 @@ def helpMessage() {
             --amplicon-details            CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
             --reference-genome-fasta      FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
             --minimum-allele-fraction     Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
+            --vep-cache-dir               Directory in which to install Ensembl VEP cache files
+            --vep-species                 The species name, e.g. homo_sapiens
+            --vep-assembly                The genome assembly, e.g. GRCh37
             --output-dir                  Directory to which output files are written
             --output-prefix               Prefix for output file names
 
@@ -272,6 +269,9 @@ def helpMessage() {
             ampliconDetails       = "amplicons.csv"
             referenceGenomeFasta  = "/reference_data/GRCh37.fa"
             minimumAlleleFraction = 0.01
+            vepCacheDir           = "vep_cache"
+            vepSpecies            = "homo_sapiens"
+            vepAssembly           = "GRCh37"
             outputDir             = "results"
             outputPrefix          = ""
         }
