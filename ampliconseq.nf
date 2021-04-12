@@ -172,7 +172,7 @@ workflow {
     reference_sequence_dictionary = channel.fromPath("${params.referenceGenomeFasta}".replaceFirst("${reference_sequence_fasta_file.extension}\$", "dict"), checkIfExists: true)
     reference_sequence = reference_sequence_fasta
         .combine(reference_sequence_index)
-        .combine(reference_sequence_dictionary) 
+        .combine(reference_sequence_dictionary)
 
     // check sample sheet
     samples = check_samples(sample_sheet)
