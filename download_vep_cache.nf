@@ -3,15 +3,6 @@
 // enable DSL 2 syntax
 nextflow.enable.dsl = 2
 
-// -----------------------------------------------------------------------------
-// default parameter settings
-// -----------------------------------------------------------------------------
-
-params.help     = false
-params.cacheDir = "${launchDir}/vep_cache"
-params.species  = "homo_sapiens"
-params.assembly = "GRCh37"
-
 
 printParameterSummary()
 
@@ -31,8 +22,8 @@ process download_vep_cache {
         vep_install \
             --AUTO cf \
             --CACHEDIR ${cache_dir} \
-            --SPECIES ${params.species} \
-            --ASSEMBLY ${params.assembly} \
+            --SPECIES ${params.vepSpecies} \
+            --ASSEMBLY ${params.vepAssembly} \
             --CONVERT \
             --NO_BIOPERL \
             --NO_HTSLIB \
@@ -43,7 +34,7 @@ process download_vep_cache {
 
 
 workflow {
-    cache_dir = channel.fromPath(params.cacheDir, checkIfExists: true)
+    cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
     download_vep_cache(cache_dir)
 }
 
@@ -60,9 +51,9 @@ def printParameterSummary() {
 
         Ensembl VEP cache download
 
-        VEP cache directory : ${params.cacheDir}
-        Species             : ${params.species}
-        Assembly            : ${params.assembly}
+        VEP cache directory : ${params.vepCacheDir}
+        Species             : ${params.vepSpecies}
+        Assembly            : ${params.vepAssembly}
     """.stripIndent()
     log.info ""
 }
@@ -78,10 +69,10 @@ def helpMessage() {
             nextflow run crukci-bioinformatics/ampliconseq --main-script download_vep_cache.nf
 
         Options:
-            --help            Show this message and exit
-            --cache-dir       Directory in which to install Ensembl VEP cache files
-            --species         The species name, e.g. homo_sapiens
-            --assembly        The genome assembly, e.g. GRCh37
+            --help             Show this message and exit
+            --vep-cache-dir    Directory in which to install Ensembl VEP cache files
+            --vep-species      The species name, e.g. homo_sapiens
+            --vep-assembly     The genome assembly, e.g. GRCh37
 
     """.stripIndent()
     log.info ""
