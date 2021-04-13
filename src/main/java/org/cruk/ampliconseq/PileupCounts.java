@@ -20,6 +20,10 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.cruk.htsjdk.CommandLineProgram;
+import org.cruk.htsjdk.ProgressLogger;
+import org.cruk.htsjdk.intervals.IntervalUtils;
+import org.cruk.htsjdk.pileup.PileupUtils;
 
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
