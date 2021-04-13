@@ -247,21 +247,20 @@ def helpMessage() {
             nextflow run crukci-bioinformatics/ampliconseq
 
         Options:
-            --help                        Show this message and exit
-            --sample-sheet                CSV/TSV file containing details of sample datasets (ID and Sample columns required)
-            --bam-dir                     Directory in which BAM files are located
-            --amplicon-details            CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
-            --reference-genome-fasta      FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
-            --minimum-allele-fraction     Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
-            --vep-cache-dir               Directory in which to install Ensembl VEP cache files
-            --vep-species                 The species name, e.g. homo_sapiens
-            --vep-assembly                The genome assembly, e.g. GRCh37
-            --output-dir                  Directory to which output files are written
-            --output-prefix               Prefix for output file names
+            --help                     Show this message and exit
+            --sampleSheet              CSV/TSV file containing details of sample datasets (ID and Sample columns required)
+            --bamDir                   Directory in which BAM files are located
+            --ampliconDetails          CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
+            --referenceGenomeFasta     FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
+            --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
+            --vepCacheDir              Directory in which to install Ensembl VEP cache files
+            --vepSpecies               The species name, e.g. homo_sapiens
+            --vepAssembly              The genome assembly, e.g. GRCh37
+            --outputDir                Directory to which output files are written
+            --outputPrefix             Prefix for output file names
 
         Alternatively, override settings using a configuration file such as the
-        following, in which parameter names used are the camelCase equivalent of the
-        above options:
+        following:
 
         params {
             sampleSheet           = "samples.csv"

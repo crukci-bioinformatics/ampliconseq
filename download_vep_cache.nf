@@ -69,10 +69,22 @@ def helpMessage() {
             nextflow run crukci-bioinformatics/ampliconseq --main-script download_vep_cache.nf
 
         Options:
-            --help             Show this message and exit
-            --vep-cache-dir    Directory in which to install Ensembl VEP cache files
-            --vep-species      The species name, e.g. homo_sapiens
-            --vep-assembly     The genome assembly, e.g. GRCh37
+            --help           Show this message and exit
+            --vepCacheDir    Directory in which to install Ensembl VEP cache files
+            --vepSpecies     The species name, e.g. homo_sapiens
+            --vepAssembly    The genome assembly, e.g. GRCh37
+
+        Alternatively, override settings using a configuration file such as the
+        following:
+
+        params {
+            vepCacheDir = "vep_cache"
+            vepSpecies  = "homo_sapiens"
+            vepAssembly = "GRCh37"
+        }
+
+        and run as follows:
+            nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config
 
     """.stripIndent()
     log.info ""
