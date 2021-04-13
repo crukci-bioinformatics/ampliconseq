@@ -24,11 +24,20 @@ RUN /opt/conda/bin/conda env create -f conda.yml && /opt/conda/bin/conda clean -
 ENV PATH /opt/conda/envs/ampliconseq/bin:$PATH
 
 # ensures that a new build is run if commits have been made since the last build
+ADD "https://api.github.com/repos/crukci-bioinformatics/htsjdk-tools/commits?per_page=1" /opt/htsjdk-tools/.latest_commit
+
+ARG HTSJDK_TOOLS_VERSION=master
+
+RUN git clone --branch ${HTSJDK_TOOLS_VERSION} --depth 1 https://github.com/crukci-bioinformatics/htsjdk-tools /opt/htsjdk-tools/build && \
+    cd /opt/htsjdk-tools/build && \
+    mvn install
+
+# ensures that a new build is run if commits have been made since the last build
 ADD "https://api.github.com/repos/crukci-bioinformatics/ampliconseq/commits?per_page=1" /opt/ampliconseq/.latest_commit
 
-ARG VERSION=master
+ARG AMPLICONSEQ_VERSION=master
 
-RUN git clone --branch ${VERSION} --depth 1 https://github.com/crukci-bioinformatics/ampliconseq /opt/ampliconseq/build && \
+RUN git clone --branch ${AMPLICONSEQ_VERSION} --depth 1 https://github.com/crukci-bioinformatics/ampliconseq /opt/ampliconseq/build && \
     cd /opt/ampliconseq/build && \
     mvn package && \
     cd .. && \
