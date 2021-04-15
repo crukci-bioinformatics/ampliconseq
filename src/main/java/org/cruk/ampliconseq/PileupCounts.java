@@ -109,7 +109,7 @@ public class PileupCounts extends CommandLineProgram {
         option.setType(Number.class);
         options.addOption(option);
 
-        option = new Option("m", "minimum-base-quality", true,
+        option = new Option("m", "minimum-mapping-quality", true,
                 "Minimum mapping quality for reads to be included (default: " + minimumMappingQuality + ")");
         option.setType(Number.class);
         options.addOption(option);
