@@ -199,6 +199,8 @@ public class PileupCounts extends CommandLineProgram {
             logger.error(e);
             System.exit(1);
         }
+
+        logger.info("Finished");
     }
 
     /**

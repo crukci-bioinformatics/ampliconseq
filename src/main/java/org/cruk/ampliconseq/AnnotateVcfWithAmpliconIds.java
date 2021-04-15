@@ -141,5 +141,7 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
 
         CloserUtil.close(reader);
         writer.close();
+
+        logger.info("Finished");
     }
 }
