@@ -1,7 +1,7 @@
 FROM maven:3.6.3-openjdk-11
 
 LABEL authors="Matt Eldridge" \
-      version="1.0.0" \
+      version="1.0-snapshot" \
       description="Variant calling pipeline for amplicon sequencing data"
 
 RUN apt-get update && \
