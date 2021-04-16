@@ -75,7 +75,6 @@
                     <assembleDirectory>${project.build.directory}/tools</assembleDirectory>
                     <configurationSourceDirectory>src/main/resources</configurationSourceDirectory>
                     <copyConfigurationDirectory>true</copyConfigurationDirectory>
-                    <extraJvmArguments>-Xms512M -Xmx4096M</extraJvmArguments>
                     <repositoryLayout>flat</repositoryLayout>
                     <repositoryName>lib</repositoryName>
                     <projectArtifactFirstInClassPath>true</projectArtifactFirstInClassPath>
