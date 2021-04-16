@@ -57,8 +57,8 @@ public class PileupCounts extends CommandLineProgram {
     private File intervalsFile;
     private File referenceSequenceFile;
     private File pileupCountsFile;
-    private int minimumBaseQuality = 0;
-    private int minimumMappingQuality = 0;
+    private int minimumBaseQuality = 10;
+    private int minimumMappingQuality = 1;
 
     public static void main(String[] args) {
         PileupCounts pileupCounts = new PileupCounts();
@@ -124,8 +124,12 @@ public class PileupCounts extends CommandLineProgram {
         intervalsFile = (File) commandLine.getParsedOptionValue("intervals");
         referenceSequenceFile = (File) commandLine.getParsedOptionValue("reference-sequence");
         pileupCountsFile = (File) commandLine.getParsedOptionValue("output");
-        minimumBaseQuality = ((Number) commandLine.getParsedOptionValue("minimum-base-quality")).intValue();
-        minimumMappingQuality = ((Number) commandLine.getParsedOptionValue("minimum-mapping-quality")).intValue();
+        if (commandLine.hasOption("minimum-base-quality")) {
+            minimumBaseQuality = ((Number) commandLine.getParsedOptionValue("minimum-base-quality")).intValue();
+        }
+        if (commandLine.hasOption("minimum-mapping-quality")) {
+            minimumMappingQuality = ((Number) commandLine.getParsedOptionValue("minimum-mapping-quality")).intValue();
+        }
     }
 
     /**
