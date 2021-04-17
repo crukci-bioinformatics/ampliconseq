@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e -o pipefail
+
 for group in `sed 1d !{amplicon_groups} | cut -f8 | sort -un`
 do
     awk -v group=${group} 'BEGIN { FS = "\t"; OFS = "\t" } $8 == group { print $2, $3 - 1, $4, $1 }' !{amplicon_groups} > amplicons.bed
