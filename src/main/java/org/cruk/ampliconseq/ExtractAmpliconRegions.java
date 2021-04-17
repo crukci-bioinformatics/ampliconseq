@@ -15,10 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.cruk.htsjdk.CommandLineProgram;
@@ -37,6 +33,9 @@ import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * Utility for extracting reads from a BAM file that correspond to targeted
@@ -44,96 +43,51 @@ import htsjdk.samtools.util.Interval;
  *
  * @author eldrid01
  */
+@Command(name = "extract-amplicon-regions", versionProvider = ExtractAmpliconRegions.class, description = "\nExtracts reads from a BAM file that correspond to targeted PCR/amplicion regions.\n", mixinStandardHelpOptions = true)
 public class ExtractAmpliconRegions extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
+    @Option(names = "--id", required = true, description = "Identifier for this dataset; if included the coverage summary will have an additional ID column (required).")
     private String id;
+
+    @Option(names = { "-i",
+            "--input" }, required = true, description = "Input BAM file which must be in coordinate sort order and indexed (required).")
     private File bamFile;
+
+    @Option(names = { "-l",
+            "--intervals" }, required = true, description = "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required).")
     private File ampliconsFile;
+
+    @Option(names = { "-d",
+            "--maximum-distance" }, description = "The maximum distance of the alignment start/end to the amplicon start/end position (default: ${DEFAULT-VALUE}).")
     private int maximumDistance = 0;
+
+    @Option(names = "--require-both-ends-anchored", description = "Require that both ends of the amplicon need to be anchored by paired end reads.")
     private boolean requireBothEndsAnchored = false;
+
+    @Option(names = "--unmark-duplicate-reads", description = "Remove duplicate flag, if set, from SAM records.")
     private boolean unmarkDuplicateReads = false;
+
+    @Option(names = { "-o",
+            "--output" }, required = true, description = "The output BAM file containing reads that match the amplicon coordinates (required).")
     private File ampliconBamFile;
+
+    @Option(names = { "-c",
+            "--coverage" }, description = "Output coverage file summarizing read counts for each amplicon (optional).")
     private File ampliconCoverageFile;
 
     public static void main(String[] args) {
-        ExtractAmpliconRegions extractAmpliconRegions = new ExtractAmpliconRegions();
-        extractAmpliconRegions.parseCommandLineArgs(args);
-        extractAmpliconRegions.run();
-    }
-
-    @Override
-    protected String getHelpDescription() {
-        return "Extracts reads from a BAM file that correspond to targeted PCR/amplicion regions";
-    }
-
-    @Override
-    protected Options createOptions() {
-        Options options = super.createOptions();
-
-        Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the coverage summary will have an additional ID column (required)");
-        option.setRequired(true);
-        options.addOption(option);
-
-        option = new Option("i", "input", true,
-                "Input BAM file which must be in coordinate sort order and indexed (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("l", "intervals", true,
-                "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("d", "maximum-distance", true,
-                "The maximum distance of the alignment start/end to the amplicon start/end position (default: "
-                        + maximumDistance + ")");
-        option.setType(Number.class);
-        options.addOption(option);
-
-        option = new Option(null, "require-both-ends-anchored", false,
-                "Set if both ends of the amplicon need to be anchored by paired end reads");
-        options.addOption(option);
-
-        option = new Option(null, "unmark-duplicate-reads", false, "Remove duplicate flag, if set, from reads");
-        options.addOption(option);
-
-        option = new Option("o", "output", true,
-                "The output BAM file containing reads that match the amplicon coordinates (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("c", "coverage", true,
-                "Output coverage file summarizing read counts for each amplicon (optional)");
-        option.setType(File.class);
-        options.addOption(option);
-
-        return options;
-    }
-
-    @Override
-    protected void extractOptionValues(CommandLine commandLine) throws ParseException {
-        id = commandLine.getOptionValue("id");
-        bamFile = (File) commandLine.getParsedOptionValue("input");
-        ampliconsFile = (File) commandLine.getParsedOptionValue("intervals");
-        if (commandLine.hasOption("maximum-distance")) {
-            maximumDistance = ((Number) commandLine.getParsedOptionValue("maximum-distance")).intValue();
-        }
-        requireBothEndsAnchored = commandLine.hasOption("require-both-ends-anchored");
-        unmarkDuplicateReads = commandLine.hasOption("unmark-duplicate-reads");
-        ampliconBamFile = (File) commandLine.getParsedOptionValue("output");
-        ampliconCoverageFile = (File) commandLine.getParsedOptionValue("coverage");
+        int exitCode = new CommandLine(new ExtractAmpliconRegions()).execute(args);
+        System.exit(exitCode);
     }
 
     /**
      * Main run method for extracting SAM records from a BAM file that match
      * amplicon intervals.
      */
-    private void run() {
+    @Override
+    public void run() {
+        logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         ProgressLogger progress = new ProgressLogger(logger, 100000);
 
@@ -220,7 +174,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             if (coverageWriter != null) {
                 coverageWriter.close();
             }
-
         } catch (IOException e) {
             logger.error(e);
             System.exit(1);

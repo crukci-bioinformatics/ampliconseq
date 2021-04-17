@@ -14,10 +14,6 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Option;
-import org.apache.commons.cli.Options;
-import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.cruk.htsjdk.CommandLineProgram;
@@ -25,6 +21,7 @@ import org.cruk.htsjdk.ProgressLogger;
 import org.cruk.htsjdk.intervals.IntervalUtils;
 import org.cruk.htsjdk.pileup.PileupUtils;
 
+import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
@@ -39,6 +36,9 @@ import htsjdk.samtools.util.IntervalList;
 import htsjdk.samtools.util.SamLocusIterator;
 import htsjdk.samtools.util.SamLocusIterator.LocusInfo;
 import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * Command line tool for generating a pileup summary for all loci within a
@@ -49,94 +49,49 @@ import htsjdk.samtools.util.SamLocusIterator.RecordAndOffset;
  *
  * @author eldrid01
  */
+@Command(name = "pileup-counts", versionProvider = PileupCounts.class, description = "\nGenerates a pileup summary with read counts for each position and allele.\n", mixinStandardHelpOptions = true)
 public class PileupCounts extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
+    @Option(names = "--id", required = true, description = "Identifier for this dataset included in the output table in the ID column (required).")
     private String id;
+
+    @Option(names = { "-i",
+            "--input" }, required = true, description = "Input BAM file which must be in coordinate sort order and indexed (required).")
     private File bamFile;
+
+    @Option(names = { "-l",
+            "--intervals" }, required = true, description = "Intervals over which to generate pileup counts; can be in BED or Picard-style interval format (required).")
     private File intervalsFile;
+
+    @Option(names = { "-r",
+            "--reference-sequence" }, required = true, description = "Reference sequence FASTA file which must be indexed and have an accompanying dictionary (required).")
     private File referenceSequenceFile;
+
+    @Option(names = { "-o",
+            "--output" }, required = true, description = "The output pileup summary table with read counts for each position and allele (required).")
     private File pileupCountsFile;
+
+    @Option(names = { "-q",
+            "--minimum-base-quality" }, description = "Minimum base quality for the base call at a locus for reads to be included (default: ${DEFAULT-VALUE}).")
     private int minimumBaseQuality = 10;
+
+    @Option(names = { "-m",
+            "--minimum-mapping-quality" }, description = "Minimum mapping quality for reads to be included (default: ${DEFAULT-VALUE}).")
     private int minimumMappingQuality = 1;
 
     public static void main(String[] args) {
-        PileupCounts pileupCounts = new PileupCounts();
-        pileupCounts.parseCommandLineArgs(args);
-        pileupCounts.run();
-    }
-
-    @Override
-    protected String getHelpDescription() {
-        return "Generates a pileup summary with read counts for each position and allele";
-    }
-
-    @Override
-    protected Options createOptions() {
-        Options options = super.createOptions();
-
-        Option option = new Option(null, "id", true,
-                "Identifier for this dataset; if included the pileup counts table will have an additional ID column (required)");
-        option.setRequired(true);
-        options.addOption(option);
-
-        option = new Option("i", "input", true,
-                "Input BAM file which must be in coordinate sort order and indexed (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("l", "intervals", true,
-                "Intervals over which to generate pileup counts; can be in BED or Picard-style interval format (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("r", "reference-sequence", true, "Reference sequence FASTA file (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("o", "output", true,
-                "The output pileup summary table with read counts for each position and allele (required)");
-        option.setRequired(true);
-        option.setType(File.class);
-        options.addOption(option);
-
-        option = new Option("q", "minimum-base-quality", true,
-                "Minimum base quality for the base call at a locus for reads to be included (default: "
-                        + minimumBaseQuality + ")");
-        option.setType(Number.class);
-        options.addOption(option);
-
-        option = new Option("m", "minimum-mapping-quality", true,
-                "Minimum mapping quality for reads to be included (default: " + minimumMappingQuality + ")");
-        option.setType(Number.class);
-        options.addOption(option);
-
-        return options;
-    }
-
-    @Override
-    protected void extractOptionValues(CommandLine commandLine) throws ParseException {
-        id = commandLine.getOptionValue("id");
-        bamFile = (File) commandLine.getParsedOptionValue("input");
-        intervalsFile = (File) commandLine.getParsedOptionValue("intervals");
-        referenceSequenceFile = (File) commandLine.getParsedOptionValue("reference-sequence");
-        pileupCountsFile = (File) commandLine.getParsedOptionValue("output");
-        if (commandLine.hasOption("minimum-base-quality")) {
-            minimumBaseQuality = ((Number) commandLine.getParsedOptionValue("minimum-base-quality")).intValue();
-        }
-        if (commandLine.hasOption("minimum-mapping-quality")) {
-            minimumMappingQuality = ((Number) commandLine.getParsedOptionValue("minimum-mapping-quality")).intValue();
-        }
+        int exitCode = new CommandLine(new PileupCounts()).execute(args);
+        System.exit(exitCode);
     }
 
     /**
      * Main run method for iterating over loci within the given intervals and
      * tabulating read counts for each base.
      */
-    private void run() {
+    @Override
+    public void run() {
+        logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         ProgressLogger progress = new ProgressLogger(logger, 100, "loci");
 
@@ -151,6 +106,12 @@ public class PileupCounts extends CommandLineProgram {
         ReferenceSequenceFileWalker referenceSequenceFileWalker = new ReferenceSequenceFileWalker(
                 referenceSequenceFile);
 
+        SAMSequenceDictionary sequenceDictionary = referenceSequenceFileWalker.getSequenceDictionary();
+        if (sequenceDictionary == null) {
+            logger.error("Sequence dictionary for reference sequence is missing");
+            System.exit(1);
+        }
+
         List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
 
         BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
@@ -162,7 +123,7 @@ public class PileupCounts extends CommandLineProgram {
 
                 logger.info("Interval: " + interval.getName());
 
-                IntervalList intervalList = new IntervalList(referenceSequenceFileWalker.getSequenceDictionary());
+                IntervalList intervalList = new IntervalList(sequenceDictionary);
                 intervalList.add(interval);
 
                 SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
@@ -195,9 +156,10 @@ public class PileupCounts extends CommandLineProgram {
                 locusIterator.close();
             }
 
-            CloserUtil.close(reader);
-
             writer.close();
+
+            referenceSequenceFileWalker.close();
+            CloserUtil.close(reader);
 
         } catch (IOException e) {
             logger.error(e);
