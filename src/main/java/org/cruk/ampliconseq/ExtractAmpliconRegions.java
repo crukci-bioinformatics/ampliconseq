@@ -75,6 +75,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             "--coverage" }, description = "Output coverage file summarizing read counts for each amplicon (optional).")
     private File ampliconCoverageFile;
 
+    @Option(names = "--validation-stringency", description = "Validation stringency applied to the BAM file (default: ${DEFAULT-VALUE}).")
+    private ValidationStringency validationStringency = ValidationStringency.LENIENT;
+
     public static void main(String[] args) {
         int exitCode = new CommandLine(new ExtractAmpliconRegions()).execute(args);
         System.exit(exitCode);
@@ -94,8 +97,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         IOUtil.assertFileIsReadable(ampliconsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
 
-        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
-                .open(bamFile);
+        SamReader reader = SamReaderFactory.makeDefault().validationStringency(validationStringency).open(bamFile);
         if (!reader.hasIndex()) {
             logger.error("No index found for input BAM file");
             return 1;
