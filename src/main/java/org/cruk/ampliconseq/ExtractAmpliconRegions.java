@@ -29,7 +29,6 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -112,7 +111,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
                 writeCoverageHeader(coverageWriter);
             }
 
-            Map<String, Integer> ampliconReadFlags = new HashMap<String, Integer>();
+            Map<String, Integer> ampliconReadFlags = new HashMap<>();
 
             for (Interval amplicon : amplicons) {
                 ampliconReadFlags.clear();
@@ -169,7 +168,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             logger.info("Writing " + ampliconBamFile.getName());
             writer.close();
 
-            CloserUtil.close(reader);
+            reader.close();
 
             if (coverageWriter != null) {
                 coverageWriter.close();
