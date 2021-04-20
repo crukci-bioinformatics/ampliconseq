@@ -2,6 +2,7 @@
 
 set -e -o pipefail
 
+
 # Picard CollectAlignmentSummaryMetrics bundled with GATK
 
 gatk CollectAlignmentSummaryMetrics \
