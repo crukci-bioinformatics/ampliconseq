@@ -79,6 +79,9 @@ public class PileupCounts extends CommandLineProgram {
             "--minimum-mapping-quality" }, description = "Minimum mapping quality for reads to be included (default: ${DEFAULT-VALUE}).")
     private int minimumMappingQuality = 1;
 
+    @Option(names = "--validation-stringency", description = "Validation stringency applied to the BAM file (default: ${DEFAULT-VALUE}).")
+    private ValidationStringency validationStringency = ValidationStringency.LENIENT;
+
     public static void main(String[] args) {
         int exitCode = new CommandLine(new PileupCounts()).execute(args);
         System.exit(exitCode);
@@ -99,8 +102,7 @@ public class PileupCounts extends CommandLineProgram {
         IOUtil.assertFileIsReadable(referenceSequenceFile);
         IOUtil.assertFileIsWritable(pileupCountsFile);
 
-        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
-                .open(bamFile);
+        SamReader reader = SamReaderFactory.makeDefault().validationStringency(validationStringency).open(bamFile);
         if (!reader.hasIndex()) {
             logger.error("No index found for input BAM file");
             return 1;
