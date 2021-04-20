@@ -29,7 +29,6 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -95,92 +94,89 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         IOUtil.assertFileIsReadable(ampliconsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
 
-        SamReader reader = null;
+        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
+                .open(bamFile);
+        if (!reader.hasIndex()) {
+            logger.error("No index found for input BAM file");
+            return 1;
+        }
 
-        try {
-            reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(bamFile);
-            if (!reader.hasIndex()) {
-                logger.error("No index found for input BAM file");
-                return 1;
+        SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
+                .makeSAMOrBAMWriter(reader.getFileHeader(), true, ampliconBamFile);
+
+        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+
+        BufferedWriter coverageWriter = null;
+        if (ampliconCoverageFile != null) {
+            coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
+        }
+
+        if (coverageWriter != null) {
+            writeCoverageHeader(coverageWriter);
+        }
+
+        Map<String, Integer> ampliconReadFlags = new HashMap<>();
+
+        for (Interval amplicon : amplicons) {
+            ampliconReadFlags.clear();
+
+            logger.info("Extracting records for " + amplicon.toString());
+
+            SAMRecordIterator iterator = reader.queryOverlapping(amplicon.getContig(), amplicon.getStart(),
+                    amplicon.getEnd());
+
+            // first pass over overlapping records to record which ends are
+            // within an acceptable distance of the amplicon start/end
+            // coordinate
+            while (iterator.hasNext()) {
+                SAMRecord record = iterator.next();
+                addAmpliconReadFlags(record, amplicon, ampliconReadFlags);
             }
 
-            SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
-                    .makeSAMOrBAMWriter(reader.getFileHeader(), true, ampliconBamFile);
+            iterator.close();
 
-            List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+            int recordCount = 0;
+            int baseCount = 0;
 
-            BufferedWriter coverageWriter = null;
-            if (ampliconCoverageFile != null) {
-                coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
-            }
+            // second pass over overlapping records in which reads or read
+            // pairs consistent with this amplicon are written
+            iterator = reader.queryOverlapping(amplicon.getContig(), amplicon.getStart(), amplicon.getEnd());
+            while (iterator.hasNext()) {
+                SAMRecord record = iterator.next();
 
-            if (coverageWriter != null) {
-                writeCoverageHeader(coverageWriter);
-            }
+                if (isAmpliconRead(record, ampliconReadFlags)) {
+                    recordCount++;
 
-            Map<String, Integer> ampliconReadFlags = new HashMap<>();
-
-            for (Interval amplicon : amplicons) {
-                ampliconReadFlags.clear();
-
-                logger.info("Extracting records for " + amplicon.toString());
-
-                SAMRecordIterator iterator = reader.queryOverlapping(amplicon.getContig(), amplicon.getStart(),
-                        amplicon.getEnd());
-
-                // first pass over overlapping records to record which ends are
-                // within an acceptable distance of the amplicon start/end
-                // coordinate
-                while (iterator.hasNext()) {
-                    SAMRecord record = iterator.next();
-                    addAmpliconReadFlags(record, amplicon, ampliconReadFlags);
-                }
-
-                iterator.close();
-
-                int recordCount = 0;
-                int baseCount = 0;
-
-                // second pass over overlapping records in which reads or read
-                // pairs consistent with this amplicon are written
-                iterator = reader.queryOverlapping(amplicon.getContig(), amplicon.getStart(), amplicon.getEnd());
-                while (iterator.hasNext()) {
-                    SAMRecord record = iterator.next();
-
-                    if (isAmpliconRead(record, ampliconReadFlags)) {
-                        recordCount++;
-
-                        if (unmarkDuplicateReads) {
-                            record.setDuplicateReadFlag(false);
-                        }
-
-                        writer.addAlignment(record);
-
-                        if (coverageWriter != null) {
-                            baseCount += countBasesCovered(record, amplicon);
-                        }
+                    if (unmarkDuplicateReads) {
+                        record.setDuplicateReadFlag(false);
                     }
 
-                    progress.record(record);
-                }
-                iterator.close();
+                    writer.addAlignment(record);
 
-                logger.info(recordCount + " records written for " + amplicon.toString());
-
-                if (coverageWriter != null) {
-                    writeCoverage(coverageWriter, amplicon, ampliconReadFlags, baseCount);
+                    if (coverageWriter != null) {
+                        baseCount += countBasesCovered(record, amplicon);
+                    }
                 }
+
+                progress.record(record);
             }
+            iterator.close();
 
-            logger.info("Writing " + ampliconBamFile.getName());
-            writer.close();
+            logger.info(recordCount + " records written for " + amplicon.toString());
 
             if (coverageWriter != null) {
-                coverageWriter.close();
+                writeCoverage(coverageWriter, amplicon, ampliconReadFlags, baseCount);
             }
-        } finally {
-            CloserUtil.close(reader);
         }
+
+        logger.info("Writing " + ampliconBamFile.getName());
+        writer.close();
+
+        if (coverageWriter != null) {
+            coverageWriter.close();
+        }
+
+        reader.close();
 
         logger.info("Finished");
         return 0;

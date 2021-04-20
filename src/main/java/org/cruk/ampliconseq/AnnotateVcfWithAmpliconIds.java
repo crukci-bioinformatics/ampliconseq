@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import org.cruk.htsjdk.CommandLineProgram;
 import org.cruk.htsjdk.intervals.IntervalUtils;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -75,51 +74,46 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
 
         List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
 
-        VCFFileReader reader = null;
+        VCFFileReader reader = new VCFFileReader(inputVcfFile, false);
+        VCFHeader header = reader.getFileHeader();
 
-        try {
-            reader = new VCFFileReader(inputVcfFile, false);
-            VCFHeader header = reader.getFileHeader();
+        header.addMetaDataLine(
+                new VCFInfoHeaderLine(AMPLICON_ATTRIBUTE, 1, VCFHeaderLineType.String, "The amplicon identifier."));
 
-            header.addMetaDataLine(
-                    new VCFInfoHeaderLine(AMPLICON_ATTRIBUTE, 1, VCFHeaderLineType.String, "The amplicon identifier."));
+        VariantContextWriterBuilder builder = new VariantContextWriterBuilder().setOutputFile(outputVcfFile)
+                .setOutputFileType(OutputType.VCF).setReferenceDictionary(header.getSequenceDictionary())
+                .clearOptions();
+        VariantContextWriter writer = builder.build();
 
-            VariantContextWriterBuilder builder = new VariantContextWriterBuilder().setOutputFile(outputVcfFile)
-                    .setOutputFileType(OutputType.VCF).setReferenceDictionary(header.getSequenceDictionary())
-                    .clearOptions();
-            VariantContextWriter writer = builder.build();
+        writer.writeHeader(header);
 
-            writer.writeHeader(header);
+        for (VariantContext variant : reader) {
+            String ampliconId = null;
 
-            for (VariantContext variant : reader) {
-                String ampliconId = null;
-
-                for (Interval amplicon : amplicons) {
-                    if (variant.getContig().equals(amplicon.getContig()) && variant.getStart() <= amplicon.getEnd()
-                            && variant.getEnd() >= amplicon.getStart()) {
-                        if (ampliconId == null) {
-                            ampliconId = amplicon.getName();
-                        } else {
-                            logger.warn("Multiple amplicons found for variant " + variant);
-                        }
+            for (Interval amplicon : amplicons) {
+                if (variant.getContig().equals(amplicon.getContig()) && variant.getStart() <= amplicon.getEnd()
+                        && variant.getEnd() >= amplicon.getStart()) {
+                    if (ampliconId == null) {
+                        ampliconId = amplicon.getName();
+                    } else {
+                        logger.warn("Multiple amplicons found for variant " + variant);
                     }
                 }
-
-                if (ampliconId == null) {
-                    // VarDict has been observed to call variants just outside a target region
-                    logger.warn("No overlapping amplicon for variant " + variant);
-                } else {
-                    variant.getCommonInfo().putAttribute(AMPLICON_ATTRIBUTE, ampliconId);
-                }
-
-                writer.add(variant);
             }
 
-            writer.close();
+            if (ampliconId == null) {
+                // VarDict has been observed to call variants just outside a target region
+                logger.warn("No overlapping amplicon for variant " + variant);
+            } else {
+                variant.getCommonInfo().putAttribute(AMPLICON_ATTRIBUTE, ampliconId);
+            }
 
-        } finally {
-            CloserUtil.close(reader);
+            writer.add(variant);
         }
+
+        writer.close();
+
+        reader.close();
 
         logger.info("Finished");
         return 0;

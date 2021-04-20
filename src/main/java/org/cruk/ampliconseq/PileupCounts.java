@@ -29,7 +29,6 @@ import htsjdk.samtools.filter.DuplicateReadFilter;
 import htsjdk.samtools.filter.SecondaryAlignmentFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker;
 import htsjdk.samtools.reference.SamLocusAndReferenceIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
@@ -100,73 +99,70 @@ public class PileupCounts extends CommandLineProgram {
         IOUtil.assertFileIsReadable(referenceSequenceFile);
         IOUtil.assertFileIsWritable(pileupCountsFile);
 
-        SamReader reader = null;
-        ReferenceSequenceFileWalker referenceSequenceFileWalker = null;
-
-        try {
-            reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(bamFile);
-            if (!reader.hasIndex()) {
-                logger.error("No index found for input BAM file");
-                return 1;
-            }
-
-            referenceSequenceFileWalker = new ReferenceSequenceFileWalker(referenceSequenceFile);
-
-            SAMSequenceDictionary sequenceDictionary = referenceSequenceFileWalker.getSequenceDictionary();
-            if (sequenceDictionary == null) {
-                logger.error("Sequence dictionary for reference sequence is missing");
-                System.exit(1);
-            }
-
-            List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
-
-            BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
-
-            writeHeader(writer);
-
-            for (Interval interval : intervals) {
-
-                logger.info("Interval: " + interval.getName());
-
-                IntervalList intervalList = new IntervalList(sequenceDictionary);
-                intervalList.add(interval);
-
-                SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
-
-                // exclude reads that are marked as failing platform/vendor quality checks
-                locusIterator.setIncludeNonPfReads(false);
-
-                // exclude secondary alignments and reads marked as duplicates
-                locusIterator.setSamFilters(Arrays.asList(new SecondaryAlignmentFilter(), new DuplicateReadFilter()));
-
-                SamLocusAndReferenceIterator locusAndReferenceIterator = new SamLocusAndReferenceIterator(
-                        referenceSequenceFileWalker, locusIterator);
-
-                for (SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference : locusAndReferenceIterator) {
-
-                    List<RecordAndOffset> pileup = locusAndReference.getRecordAndOffsets();
-
-                    List<RecordAndOffset> filteredPileup = PileupUtils.filterLowQualityScores(pileup,
-                            minimumBaseQuality, minimumMappingQuality);
-
-                    filteredPileup = PileupUtils.filterOverlappingFragments(filteredPileup);
-
-                    writePileupCounts(writer, interval, locusAndReference, filteredPileup);
-
-                    LocusInfo locusInfo = locusAndReference.getLocus();
-                    progress.record(locusInfo.getContig(), locusInfo.getPosition());
-                }
-
-                locusAndReferenceIterator.close();
-                locusIterator.close();
-            }
-
-            writer.close();
-
-        } finally {
-            CloserUtil.close(reader);
-            CloserUtil.close(referenceSequenceFileWalker);
+        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
+                .open(bamFile);
+        if (!reader.hasIndex()) {
+            logger.error("No index found for input BAM file");
+            return 1;
         }
+
+        ReferenceSequenceFileWalker referenceSequenceFileWalker = new ReferenceSequenceFileWalker(
+                referenceSequenceFile);
+
+        SAMSequenceDictionary sequenceDictionary = referenceSequenceFileWalker.getSequenceDictionary();
+        if (sequenceDictionary == null) {
+            logger.error("Sequence dictionary for reference sequence is missing");
+            referenceSequenceFileWalker.close();
+            return 1;
+        }
+
+        List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
+
+        BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
+
+        writeHeader(writer);
+
+        for (Interval interval : intervals) {
+
+            logger.info("Interval: " + interval.getName());
+
+            IntervalList intervalList = new IntervalList(sequenceDictionary);
+            intervalList.add(interval);
+
+            SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
+
+            // exclude reads that are marked as failing platform/vendor quality checks
+            locusIterator.setIncludeNonPfReads(false);
+
+            // exclude secondary alignments and reads marked as duplicates
+            locusIterator.setSamFilters(Arrays.asList(new SecondaryAlignmentFilter(), new DuplicateReadFilter()));
+
+            SamLocusAndReferenceIterator locusAndReferenceIterator = new SamLocusAndReferenceIterator(
+                    referenceSequenceFileWalker, locusIterator);
+
+            for (SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference : locusAndReferenceIterator) {
+
+                List<RecordAndOffset> pileup = locusAndReference.getRecordAndOffsets();
+
+                List<RecordAndOffset> filteredPileup = PileupUtils.filterLowQualityScores(pileup, minimumBaseQuality,
+                        minimumMappingQuality);
+
+                filteredPileup = PileupUtils.filterOverlappingFragments(filteredPileup);
+
+                writePileupCounts(writer, interval, locusAndReference, filteredPileup);
+
+                LocusInfo locusInfo = locusAndReference.getLocus();
+                progress.record(locusInfo.getContig(), locusInfo.getPosition());
+            }
+
+            locusAndReferenceIterator.close();
+            locusIterator.close();
+        }
+
+        writer.close();
+
+        reader.close();
+        referenceSequenceFileWalker.close();
 
         logger.info("Finished");
         return 0;
