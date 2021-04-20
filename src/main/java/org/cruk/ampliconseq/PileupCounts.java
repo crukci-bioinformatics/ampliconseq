@@ -29,6 +29,7 @@ import htsjdk.samtools.filter.DuplicateReadFilter;
 import htsjdk.samtools.filter.SecondaryAlignmentFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker;
 import htsjdk.samtools.reference.SamLocusAndReferenceIterator;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
@@ -89,7 +90,7 @@ public class PileupCounts extends CommandLineProgram {
      * tabulating read counts for each base.
      */
     @Override
-    public void run() {
+    public Integer call() throws Exception {
         logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         ProgressLogger progress = new ProgressLogger(logger, 100, "loci");
@@ -99,23 +100,28 @@ public class PileupCounts extends CommandLineProgram {
         IOUtil.assertFileIsReadable(referenceSequenceFile);
         IOUtil.assertFileIsWritable(pileupCountsFile);
 
-        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
-                .open(bamFile);
-
-        ReferenceSequenceFileWalker referenceSequenceFileWalker = new ReferenceSequenceFileWalker(
-                referenceSequenceFile);
-
-        SAMSequenceDictionary sequenceDictionary = referenceSequenceFileWalker.getSequenceDictionary();
-        if (sequenceDictionary == null) {
-            logger.error("Sequence dictionary for reference sequence is missing");
-            System.exit(1);
-        }
-
-        List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
-
-        BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
+        SamReader reader = null;
+        ReferenceSequenceFileWalker referenceSequenceFileWalker = null;
 
         try {
+            reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(bamFile);
+            if (!reader.hasIndex()) {
+                logger.error("No index found for input BAM file");
+                return 1;
+            }
+
+            referenceSequenceFileWalker = new ReferenceSequenceFileWalker(referenceSequenceFile);
+
+            SAMSequenceDictionary sequenceDictionary = referenceSequenceFileWalker.getSequenceDictionary();
+            if (sequenceDictionary == null) {
+                logger.error("Sequence dictionary for reference sequence is missing");
+                System.exit(1);
+            }
+
+            List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
+
+            BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
+
             writeHeader(writer);
 
             for (Interval interval : intervals) {
@@ -157,15 +163,13 @@ public class PileupCounts extends CommandLineProgram {
 
             writer.close();
 
-            referenceSequenceFileWalker.close();
-            reader.close();
-
-        } catch (IOException e) {
-            logger.error(e);
-            System.exit(1);
+        } finally {
+            CloserUtil.close(reader);
+            CloserUtil.close(referenceSequenceFileWalker);
         }
 
         logger.info("Finished");
+        return 0;
     }
 
     /**

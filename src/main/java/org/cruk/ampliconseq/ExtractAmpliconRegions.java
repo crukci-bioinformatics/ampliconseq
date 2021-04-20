@@ -29,6 +29,7 @@ import htsjdk.samtools.SAMRecordIterator;
 import htsjdk.samtools.SamReader;
 import htsjdk.samtools.SamReaderFactory;
 import htsjdk.samtools.ValidationStringency;
+import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.CoordMath;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
@@ -85,7 +86,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * amplicon intervals.
      */
     @Override
-    public void run() {
+    public Integer call() throws Exception {
         logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         ProgressLogger progress = new ProgressLogger(logger, 100000);
@@ -94,19 +95,25 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         IOUtil.assertFileIsReadable(ampliconsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
 
-        SamReader reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT)
-                .open(bamFile);
-        SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
-                .makeSAMOrBAMWriter(reader.getFileHeader(), false, ampliconBamFile);
-
-        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
-
-        BufferedWriter coverageWriter = null;
-        if (ampliconCoverageFile != null) {
-            coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
-        }
+        SamReader reader = null;
 
         try {
+            reader = SamReaderFactory.makeDefault().validationStringency(ValidationStringency.SILENT).open(bamFile);
+            if (!reader.hasIndex()) {
+                logger.error("No index found for input BAM file");
+                return 1;
+            }
+
+            SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
+                    .makeSAMOrBAMWriter(reader.getFileHeader(), true, ampliconBamFile);
+
+            List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+
+            BufferedWriter coverageWriter = null;
+            if (ampliconCoverageFile != null) {
+                coverageWriter = IOUtil.openFileForBufferedWriting(ampliconCoverageFile);
+            }
+
             if (coverageWriter != null) {
                 writeCoverageHeader(coverageWriter);
             }
@@ -168,17 +175,15 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             logger.info("Writing " + ampliconBamFile.getName());
             writer.close();
 
-            reader.close();
-
             if (coverageWriter != null) {
                 coverageWriter.close();
             }
-        } catch (IOException e) {
-            logger.error(e);
-            System.exit(1);
+        } finally {
+            CloserUtil.close(reader);
         }
 
         logger.info("Finished");
+        return 0;
     }
 
     /**
