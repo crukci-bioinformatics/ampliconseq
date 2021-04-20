@@ -29,7 +29,6 @@ import htsjdk.samtools.filter.DuplicateReadFilter;
 import htsjdk.samtools.filter.SecondaryAlignmentFilter;
 import htsjdk.samtools.reference.ReferenceSequenceFileWalker;
 import htsjdk.samtools.reference.SamLocusAndReferenceIterator;
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.samtools.util.IntervalList;
@@ -159,7 +158,7 @@ public class PileupCounts extends CommandLineProgram {
             writer.close();
 
             referenceSequenceFileWalker.close();
-            CloserUtil.close(reader);
+            reader.close();
 
         } catch (IOException e) {
             logger.error(e);

@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import org.cruk.htsjdk.CommandLineProgram;
 import org.cruk.htsjdk.intervals.IntervalUtils;
 
-import htsjdk.samtools.util.CloserUtil;
 import htsjdk.samtools.util.IOUtil;
 import htsjdk.samtools.util.Interval;
 import htsjdk.variant.variantcontext.VariantContext;
@@ -112,8 +111,8 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
             writer.add(variant);
         }
 
-        CloserUtil.close(reader);
         writer.close();
+        reader.close();
 
         logger.info("Finished");
     }
