@@ -19,7 +19,7 @@ import org.apache.logging.log4j.Logger;
 import org.cruk.htsjdk.CommandLineProgram;
 import org.cruk.htsjdk.ProgressLogger;
 import org.cruk.htsjdk.intervals.IntervalUtils;
-import org.cruk.htsjdk.pileup.PileupUtils;
+import org.cruk.htsjdk.pileup.Pileup;
 
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.SamReader;
@@ -150,14 +150,11 @@ public class PileupCounts extends CommandLineProgram {
 
             for (SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference : locusAndReferenceIterator) {
 
-                List<RecordAndOffset> pileup = locusAndReference.getRecordAndOffsets();
+                Pileup<RecordAndOffset> pileup = new Pileup<>(locusAndReference.getRecordAndOffsets());
+                pileup = pileup.getMappingAndBaseQualityFilteredPileup(minimumMappingQuality, minimumBaseQuality);
+                pileup = pileup.getOverlapFilteredPileup();
 
-                List<RecordAndOffset> filteredPileup = PileupUtils.filterLowQualityScores(pileup, minimumBaseQuality,
-                        minimumMappingQuality);
-
-                filteredPileup = PileupUtils.filterOverlaps(filteredPileup);
-
-                writePileupCounts(writer, interval, locusAndReference, filteredPileup);
+                writePileupCounts(writer, interval, locusAndReference, pileup);
 
                 LocusInfo locusInfo = locusAndReference.getLocus();
                 progress.record(locusInfo.getContig(), locusInfo.getPosition());
@@ -210,7 +207,7 @@ public class PileupCounts extends CommandLineProgram {
     }
 
     private void writePileupCounts(BufferedWriter writer, Interval interval,
-            SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference, List<RecordAndOffset> filteredPileup)
+            SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference, Pileup<RecordAndOffset> pileup)
             throws IOException {
 
         writer.write(id);
@@ -231,9 +228,9 @@ public class PileupCounts extends CommandLineProgram {
         writer.write(Integer.toString(locusAndReference.getRecordAndOffsets().size()));
 
         writer.write("\t");
-        writer.write(Integer.toString(filteredPileup.size()));
+        writer.write(Integer.toString(pileup.size()));
 
-        int[] baseCounts = PileupUtils.getBaseCounts(filteredPileup);
+        int[] baseCounts = pileup.getBaseCounts();
         for (int i = 0; i < baseCounts.length; i++) {
             writer.write("\t");
             writer.write(Integer.toString(baseCounts[i]));
