@@ -175,7 +175,7 @@ workflow {
     )
 
     // BAM file channel created by reading the validated sample sheet
-    bam = check_samples.out
+    bam = samples
         .splitCsv(header: true, quote: '"')
         .map { row -> tuple("${row.ID}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
 
