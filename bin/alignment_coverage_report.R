@@ -33,7 +33,7 @@ to_embedded_image <- function(file, mimetype)
 }
 
 # sample metadata
-samples <- read_tsv(samples_file) %>%
+samples <- read_csv(samples_file) %>%
   arrange(ID)
 
 ids <- samples$ID
