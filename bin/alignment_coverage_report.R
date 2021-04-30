@@ -28,7 +28,7 @@ to_embedded_image <- function(file, mimetype)
   encode(file, tempFile)
   encoded <- readChar(tempFile, file.info(tempFile)$size)
   file.remove(tempFile)
-  encoded <- paste('data:', mimetype, ';base64,', encoded, sep = '')
+  encoded <- str_c("data:", mimetype, ";base64,", encoded)
   encoded
 }
 
@@ -156,8 +156,8 @@ alignment_metrics <- merged_metrics %>%
 yield_metrics <- merged_metrics %>%
   select(
     id = label,
-    on_amplicon = YIELD_USABLE_BASES_ON_AMPLICON,
-    off_amplicon = YIELD_OFF_TARGET,
+    `on-amplicon` = YIELD_USABLE_BASES_ON_AMPLICON,
+    `off-amplicon` = YIELD_OFF_TARGET,
     unusable = YIELD_UNUSABLE,
     unaligned = YIELD_UNALIGNED
   ) %>%
@@ -310,10 +310,11 @@ report <- addTo(report, target_coverage_section)
 
 temp_report_file <- tempfile(pattern = "report_", fileext = "")
 writeReport(report, filename = temp_report_file, output = HTML.REPORT)
-file.rename(paste(temp_report_file, "html", sep = "."), report_file)
+file.copy(str_c(temp_report_file, ".html"), report_file)
 
 file.remove(yield_plot_file)
 file.remove(mean_target_coverage_plot_file)
 file.remove(usable_bases_off_amplicon_plot_file)
 file.remove(amplicon_coverage_plot_file)
+file.remove(temp_report_file)
 
