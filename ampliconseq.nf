@@ -148,6 +148,29 @@ process picard_metrics {
 }
 
 
+process alignment_coverage_report {
+    executor "local"
+    publishDir "${params.outputDir}", mode: 'copy'
+
+    input:
+        path samples
+        path alignment_metrics
+        path targeted_pcr_metrics
+        path amplicon_coverage
+
+    output:
+        path alignment_coverage_metrics
+        path alignment_coverage_report
+
+    script:
+        alignment_coverage_metrics = "alignment_coverage_metrics.csv"
+        alignment_coverage_report = "alignment_coverage_report.html"
+        """
+        alignment_coverage_report.R ${samples} ${alignment_metrics} ${targeted_pcr_metrics} ${amplicon_coverage} ${alignment_coverage_metrics} ${alignment_coverage_report}
+        """
+}
+
+
 // -----------------------------------------------------------------------------
 // workflow
 // -----------------------------------------------------------------------------
@@ -183,9 +206,9 @@ workflow {
     picard_metrics(bam.combine(amplicon_groups).combine(reference_sequence))
 
     // collect Picard metrics for all samples
-    collected_alignment_metrics = picard_metrics.out.alignment_metrics
+    alignment_metrics = picard_metrics.out.alignment_metrics
         .collectFile(name: "alignment_metrics.txt", keepHeader: true)
-    collected_alignment_metrics = picard_metrics.out.targeted_pcr_metrics
+    targeted_pcr_metrics = picard_metrics.out.targeted_pcr_metrics
         .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true)
 
     // extract reads matching amplicons into subset BAM files for
@@ -193,7 +216,7 @@ workflow {
     extract_amplicon_regions(bam.combine(amplicon_groups))
 
     // collect amplicon coverage data for all samples
-    collected_amplicon_coverage = extract_amplicon_regions.out.coverage
+    amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
 
     // generate pileup counts
@@ -209,6 +232,8 @@ workflow {
     // collect variant calls for all samples
     collected_variants = call_variants.out.variants
         .collectFile(name: "variants.txt", keepHeader: true)
+
+    alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
 }
 
 
