@@ -9,7 +9,7 @@ do
     extract-amplicon-regions \
         --id !{id} \
         --input !{bam} \
-        --intervals amplicons.bed \
+        --amplicon-intervals amplicons.bed \
         --output !{id}.${group}.bam \
         --coverage !{id}.${group}.amplicon_coverage.txt \
         --maximum-distance 0 \

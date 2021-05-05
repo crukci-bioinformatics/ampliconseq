@@ -9,7 +9,7 @@ do
     JAVA_OPTS="-Xmx4g" pileup-counts \
         --id !{id} \
         --input !{id}.${group}.bam \
-        --intervals targets.bed \
+        --amplicon-intervals targets.bed \
         --reference-sequence !{reference_sequence} \
         --output !{id}.${group}.pileup.txt
 done

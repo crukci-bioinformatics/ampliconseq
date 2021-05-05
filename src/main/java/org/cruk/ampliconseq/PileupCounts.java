@@ -66,8 +66,8 @@ public class PileupCounts extends CommandLineProgram {
     private File bamFile;
 
     @Option(names = { "-l",
-            "--intervals" }, required = true, description = "Intervals over which to generate pileup counts; can be in BED or Picard-style interval format (required).")
-    private File intervalsFile;
+            "--amplicon-intervals" }, required = true, description = "Amplicon intervals over which to generate pileup counts; can be in BED or Picard-style interval format (required).")
+    private File ampliconIntervalsFile;
 
     @Option(names = { "-r",
             "--reference-sequence" }, required = true, description = "Reference sequence FASTA file which must be indexed and have an accompanying dictionary (required).")
@@ -94,8 +94,8 @@ public class PileupCounts extends CommandLineProgram {
     }
 
     /**
-     * Main run method for iterating over loci within the given intervals and
-     * tabulating read counts for each base.
+     * Main run method for iterating over loci within the given amplicon intervals
+     * and tabulating read counts for each base.
      */
     @Override
     public Integer call() throws Exception {
@@ -104,7 +104,7 @@ public class PileupCounts extends CommandLineProgram {
         ProgressLogger progress = new ProgressLogger(logger, 100, "loci");
 
         IOUtil.assertFileIsReadable(bamFile);
-        IOUtil.assertFileIsReadable(intervalsFile);
+        IOUtil.assertFileIsReadable(ampliconIntervalsFile);
         IOUtil.assertFileIsReadable(referenceSequenceFile);
         IOUtil.assertFileIsWritable(pileupCountsFile);
 
@@ -124,20 +124,20 @@ public class PileupCounts extends CommandLineProgram {
             return 1;
         }
 
-        List<Interval> intervals = IntervalUtils.readIntervalFile(intervalsFile);
+        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconIntervalsFile);
 
         BufferedWriter writer = IOUtil.openFileForBufferedWriting(pileupCountsFile);
 
         writeHeader(writer);
 
-        for (Interval interval : intervals) {
+        for (Interval amplicon : amplicons) {
 
-            logger.info("Interval: " + interval.getName());
+            logger.info("Amplicon: " + amplicon.getName());
 
-            IntervalList intervalList = new IntervalList(sequenceDictionary);
-            intervalList.add(interval);
+            IntervalList ampliconIntervalList = new IntervalList(sequenceDictionary);
+            ampliconIntervalList.add(amplicon);
 
-            SamLocusIterator locusIterator = new SamLocusIterator(reader, intervalList);
+            SamLocusIterator locusIterator = new SamLocusIterator(reader, ampliconIntervalList);
 
             // exclude reads that are marked as failing platform/vendor quality checks
             locusIterator.setIncludeNonPfReads(false);
@@ -154,7 +154,7 @@ public class PileupCounts extends CommandLineProgram {
                 pileup = pileup.getMappingAndBaseQualityFilteredPileup(minimumMappingQuality, minimumBaseQuality);
                 pileup = pileup.getOverlapFilteredPileup();
 
-                writePileupCounts(writer, interval, locusAndReference, pileup);
+                writePileupCounts(writer, amplicon, locusAndReference, pileup);
 
                 LocusInfo locusInfo = locusAndReference.getLocus();
                 progress.record(locusInfo.getContig(), locusInfo.getPosition());
@@ -182,7 +182,7 @@ public class PileupCounts extends CommandLineProgram {
     private void writeHeader(BufferedWriter writer) throws IOException {
         writer.write("ID");
         writer.write("\t");
-        writer.write("Interval");
+        writer.write("Amplicon");
         writer.write("\t");
         writer.write("Chromosome");
         writer.write("\t");
@@ -206,14 +206,14 @@ public class PileupCounts extends CommandLineProgram {
         writer.write("\n");
     }
 
-    private void writePileupCounts(BufferedWriter writer, Interval interval,
+    private void writePileupCounts(BufferedWriter writer, Interval amplicon,
             SamLocusAndReferenceIterator.SAMLocusAndReference locusAndReference, Pileup<RecordAndOffset> pileup)
             throws IOException {
 
         writer.write(id);
 
         writer.write("\t");
-        writer.write(interval.getName());
+        writer.write(amplicon.getName());
 
         LocusInfo locusInfo = locusAndReference.getLocus();
 

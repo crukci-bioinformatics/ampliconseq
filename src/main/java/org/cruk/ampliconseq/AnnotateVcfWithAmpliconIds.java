@@ -48,8 +48,8 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
     private File inputVcfFile;
 
     @Option(names = { "-l",
-            "--intervals" }, required = true, description = "Amplicon intervals in which variants were called; can be in BED or Picard-style interval format (required).")
-    private File ampliconsFile;
+            "--amplicon-intervals" }, required = true, description = "Amplicon intervals in which variants were called; can be in BED or Picard-style interval format (required).")
+    private File ampliconIntervalsFile;
 
     @Option(names = { "-o",
             "--output" }, required = true, description = "Output VCF file with variants annotated with the amplicon id (required).")
@@ -69,10 +69,10 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
         logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         IOUtil.assertFileIsReadable(inputVcfFile);
-        IOUtil.assertFileIsReadable(ampliconsFile);
+        IOUtil.assertFileIsReadable(ampliconIntervalsFile);
         IOUtil.assertFileIsWritable(outputVcfFile);
 
-        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconIntervalsFile);
 
         VCFFileReader reader = new VCFFileReader(inputVcfFile, false);
         VCFHeader header = reader.getFileHeader();

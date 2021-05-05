@@ -24,7 +24,7 @@ do
 
     annotate-vcf-with-amplicon-ids \
         --input !{id}.${group}.vardict.vcf \
-        --intervals targets.bed \
+        --amplicon-intervals targets.bed \
         --output !{id}.${group}.vardict.annotated.vcf
 
     echo "!{id}.${group}.vardict.annotated.vcf" >> vcf_list.txt

@@ -54,8 +54,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
     private File bamFile;
 
     @Option(names = { "-l",
-            "--intervals" }, required = true, description = "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required).")
-    private File ampliconsFile;
+            "--amplicon-intervals" }, required = true, description = "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required).")
+    private File ampliconIntervalsFile;
 
     @Option(names = { "-d",
             "--maximum-distance" }, description = "The maximum distance of the alignment start/end to the amplicon start/end position (default: ${DEFAULT-VALUE}).")
@@ -94,7 +94,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         ProgressLogger progress = new ProgressLogger(logger, 100000);
 
         IOUtil.assertFileIsReadable(bamFile);
-        IOUtil.assertFileIsReadable(ampliconsFile);
+        IOUtil.assertFileIsReadable(ampliconIntervalsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
 
         SamReader reader = SamReaderFactory.makeDefault().validationStringency(validationStringency).open(bamFile);
@@ -106,7 +106,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         SAMFileWriter writer = new SAMFileWriterFactory().setCreateIndex(true)
                 .makeSAMOrBAMWriter(reader.getFileHeader(), true, ampliconBamFile);
 
-        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconsFile);
+        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconIntervalsFile);
 
         BufferedWriter coverageWriter = null;
         if (ampliconCoverageFile != null) {
