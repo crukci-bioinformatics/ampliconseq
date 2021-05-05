@@ -148,6 +148,7 @@ process picard_metrics {
 }
 
 
+// create alignment coverage report and combined alignment/coverage metrics table
 process alignment_coverage_report {
     executor "local"
     publishDir "${params.outputDir}", mode: 'copy'
@@ -170,6 +171,34 @@ process alignment_coverage_report {
         """
 }
 
+// fit distributions for substitution allele fractions from pileup counts and
+// compute background noise thresholds
+process compute_background_noise_thresholds {
+    publishDir "${params.outputDir}", mode: 'copy'
+
+    input:
+        path pileup_counts
+
+    output:
+        path position_thresholds
+        path dataset_thresholds
+
+    script:
+        position_thresholds = "position_noise_thresholds.txt"
+        dataset_thresholds = "dataset_noise_thresholds.txt"
+        """
+        compute_background_noise_thresholds.R \
+            --pileup-counts=${pileup_counts} \
+            --position-thresholds=${position_thresholds} \
+            --dataset-thresholds=${dataset_thresholds} \
+            --minimum-depth=100 \
+            --exclude-highest-fraction=0.1 \
+            --maximum-allele-fraction=0.03 \
+            --minimum-number-for-fitting=10 \
+            --chunk-size=500000 \
+            --read-chunk-size=100000
+        """
+}
 
 // -----------------------------------------------------------------------------
 // workflow
@@ -219,12 +248,8 @@ workflow {
     amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
 
-    // generate pileup counts
-    pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
-
-    // collect pileup counts for all samples
-    collected_pileup_counts = pileup_counts.out
-        .collectFile(name: "pileup_counts.txt", keepHeader: true)
+    // alignment coverage report
+    alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
 
     // call variants with VarDict
     call_variants(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -233,7 +258,16 @@ workflow {
     collected_variants = call_variants.out.variants
         .collectFile(name: "variants.txt", keepHeader: true)
 
-    alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
+    // generate pileup counts
+    pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
+
+    // collect pileup counts for all samples
+    collected_pileup_counts = pileup_counts.out
+        .collectFile(name: "pileup_counts.txt", keepHeader: true)
+
+    // fit distributions for substitution allele fractions from pileup counts
+    // and compute background noise thresholds
+    compute_background_noise_thresholds(collected_pileup_counts)
 }
 
 
