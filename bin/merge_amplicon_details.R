@@ -31,7 +31,11 @@ option_list <- list(
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
-opt <- parse_args(option_parser)
+
+args <- commandArgs(trailingOnly = TRUE)
+if (length(args) == 0) args <- "--help"
+
+opt <- parse_args(option_parser, args)
 
 amplicon_intervals_file <- opt$amplicon_intervals_file
 target_intervals_file <- opt$target_intervals_file
