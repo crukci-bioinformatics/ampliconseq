@@ -1,5 +1,13 @@
 #!/usr/bin/env Rscript
 
+# ------------------------------------------------------------------------------
+# Copyright (c) 2021 CRUK Cambridge Institute - Bioinformatics Core
+#
+# Licensed under the MIT license (http://opensource.org/licenses/MIT).
+# This file may not be copied, modified, or distributed except according
+# to those terms.
+# ------------------------------------------------------------------------------
+
 # Creates the amplicon details file required by the new version of the
 # ampliconseq pipeline from the amplicon and target intervals files used in
 # previous versions and the previous amplion details file (containing ID and
@@ -132,5 +140,4 @@ amplicons %>%
   select(-TargetChromosome) %>%
   left_join(amplicon_details, by = "ID") %>%
   write_csv(output_file, na = "")
-
 
