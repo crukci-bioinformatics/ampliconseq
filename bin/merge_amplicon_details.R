@@ -13,17 +13,35 @@
 # previous versions and the previous amplion details file (containing ID and
 # gene columns).
 
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 4)
-{
-  message("Usage: merge_amplicons_details.R amplicon_intervals_file target_intervals_file amplicon_details_file output_csv_file")
-  quit(status = 1)
-}
+suppressPackageStartupMessages(library(optparse))
 
-amplicon_intervals_file <- args[1]
-target_intervals_file <- args[2]
-amplicon_details_file <- args[3]
-output_file <- args[4]
+option_list <- list(
+
+  make_option(c("--amplicon-intervals"), dest = "amplicon_intervals_file",
+              help = "Amplicon intervals file in Picard-style interval format"),
+
+  make_option(c("--target-intervals"), dest = "target_intervals_file",
+              help = "Target intervals file in Picard-style interval format"),
+
+  make_option(c("--amplicon-details"), dest = "amplicon_details_file",
+              help = "Tab-separated file containing amplicon details (ID and Gene columns required)"),
+
+  make_option(c("--output"), dest = "output_file",
+              help = "Output amplicon details CSV file")
+)
+
+option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
+opt <- parse_args(option_parser)
+
+amplicon_intervals_file <- opt$amplicon_intervals_file
+target_intervals_file <- opt$target_intervals_file
+amplicon_details_file <- opt$amplicon_details_file
+output_file <- opt$output_file
+
+if (is.null(amplicon_intervals_file)) stop("Amplicon intervals file must be specified")
+if (is.null(target_intervals_file)) stop("Target intervals file must be specified")
+if (is.null(amplicon_details_file)) stop("Amplicon details file must be specified")
+if (is.null(output_file)) stop("Output file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
