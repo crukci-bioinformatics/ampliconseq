@@ -50,13 +50,7 @@ option_list <- list(
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
-
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) == 0) {
-  args <- "--help"
-}
-
-opt <- parse_args(option_parser, args)
+opt <- parse_args(option_parser)
 
 pileup_counts_file <- opt$pileup_counts_file
 position_thresholds_file <- opt$position_thresholds_file
@@ -67,6 +61,10 @@ maximum_allele_fraction <- opt$maximum_allele_fraction
 minimum_number_for_fitting <- opt$minimum_number_for_fitting
 chunk_size <- opt$chunk_size
 read_chunk_size <- opt$read_chunk_size
+
+if (is.null(pileup_counts_file)) stop("Pileup counts file must be specified")
+if (is.null(position_thresholds_file)) stop("Position noise thresholds output file must be specified")
+if (is.null(dataset_thresholds_file)) stop("Dataset noise thresholds output file must be specified")
 
 if (!is.integer(minimum_depth) || minimum_depth <= 0) {
   stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
