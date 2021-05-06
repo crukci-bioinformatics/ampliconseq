@@ -11,16 +11,30 @@
 # Creates groups of non-overlapping groups of amplicons in which no amplicon
 # within a group overlaps with another amplicon in the same group.
 
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 3)
-{
-  message("Usage: create_non_overlapping_amplicon_groups.R amplicons_file reference_sequence_index amplicon_groups_file")
-  quit(status = 1)
-}
+suppressPackageStartupMessages(library(optparse))
 
-amplicons_file <- args[1]
-reference_sequence_index_file <- args[2]
-amplicon_groups_file <- args[3]
+option_list <- list(
+
+  make_option(c("--amplicons"), dest = "amplicons_file",
+              help = "CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)"),
+
+  make_option(c("--reference-sequence-index"), dest = "reference_sequence_index_file",
+              help = "Index file for the reference genome sequence (expected to have .fai extension)"),
+
+  make_option(c("--output"), dest = "amplicon_groups_file",
+              help = "Output sample sheet file in the format required for subsequent pipeline processes")
+)
+
+option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
+opt <- parse_args(option_parser)
+
+amplicons_file <- opt$amplicons_file
+reference_sequence_index_file <- opt$reference_sequence_index_file
+amplicon_groups_file <- opt$amplicon_groups_file
+
+if (is.null(amplicons_file)) stop("Amplicon details file must be specified")
+if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
+if (is.null(amplicon_groups_file)) stop("Output amplicon groups file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 

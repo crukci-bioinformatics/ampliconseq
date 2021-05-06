@@ -62,7 +62,10 @@ process create_non_overlapping_amplicon_groups {
     script:
         amplicon_groups = "amplicon_groups.txt"
         """
-        create_non_overlapping_amplicon_groups.R ${amplicon_details} ${reference_sequence_index} ${amplicon_groups}
+        create_non_overlapping_amplicon_groups.R \
+            --amplicons=${amplicon_details} \
+            --reference-sequence-index=${reference_sequence_index} \
+            --output=${amplicon_groups}
         """
 }
 
