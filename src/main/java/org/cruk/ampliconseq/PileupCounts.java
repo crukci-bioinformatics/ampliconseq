@@ -45,7 +45,7 @@ import picocli.CommandLine.Option;
  *
  * Each interval is processed separately so that the interval name can be
  * included in the output.
- * 
+ *
  * The PileupCount class from htsjdk-tools collapses overlapping intervals and
  * allows the reference sequence to be optional and for merging of multiple
  * input BAM files. Here the reference sequence is required and only a single
