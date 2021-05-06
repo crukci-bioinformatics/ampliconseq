@@ -5,7 +5,7 @@ set -e -o pipefail
 
 # Picard CollectAlignmentSummaryMetrics bundled with GATK
 
-gatk CollectAlignmentSummaryMetrics \
+gatk --java-options "-Xmx!{java_mem}m" CollectAlignmentSummaryMetrics \
     --INPUT !{bam} \
     --REFERENCE_SEQUENCE !{reference_sequence} \
     --OUTPUT alignment_metrics.txt
@@ -20,13 +20,13 @@ extract_picard_metrics.R \
 # interval list format
 
 awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $3, $4, $1 }' amplicon_groups.txt > amplicons.bed
-gatk BedToIntervalList \
+gatk --java-options "-Xmx!{java_mem}m" BedToIntervalList \
     --INPUT amplicons.bed \
     --SEQUENCE_DICTIONARY !{reference_sequence_dictionary} \
     --OUTPUT amplicons.interval_list.txt
 
 awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $5, $6, $1 }' amplicon_groups.txt > targets.bed
-gatk BedToIntervalList \
+gatk --java-options "-Xmx!{java_mem}m" BedToIntervalList \
     --INPUT targets.bed \
     --SEQUENCE_DICTIONARY !{reference_sequence_dictionary} \
     --OUTPUT targets.interval_list.txt
@@ -34,7 +34,7 @@ gatk BedToIntervalList \
 
 # Picard CollectTargetPcrMetrics bundled with GATK
 
-gatk CollectTargetedPcrMetrics \
+gatk --java-options "-Xmx!{java_mem}m" CollectTargetedPcrMetrics \
     --INPUT !{bam} \
     --REFERENCE_SEQUENCE !{reference_sequence} \
     --AMPLICON_INTERVALS amplicons.interval_list.txt \
