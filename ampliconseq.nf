@@ -172,7 +172,13 @@ process alignment_coverage_report {
         alignment_coverage_metrics = "alignment_coverage_metrics.csv"
         alignment_coverage_report = "alignment_coverage_report.html"
         """
-        alignment_coverage_report.R ${samples} ${alignment_metrics} ${targeted_pcr_metrics} ${amplicon_coverage} ${alignment_coverage_metrics} ${alignment_coverage_report}
+        alignment_coverage_report.R \
+            --samples=${samples} \
+            --alignment-metrics=${alignment_metrics} \
+            --targeted-pcr-metrics=${targeted_pcr_metrics} \
+            --amplicon-coverage=${amplicon_coverage} \
+            --output-metrics=${alignment_coverage_metrics} \
+            --output-report=${alignment_coverage_report}
         """
 }
 

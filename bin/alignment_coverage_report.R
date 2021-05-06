@@ -8,20 +8,49 @@
 # to those terms.
 # ------------------------------------------------------------------------------
 
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 6)
-{
-  message("Usage: alignment_coverage_report.R samples_file alignment_metrics_file targeted_pcr_metrics_file amplicon_coverage_file merged_metrics_file output_report_file")
-  quit(save = "no", status = 1)
-}
+# Create alignment summary report and merged alignment and coverage metrics
+# table from the collated Picard alignment and targeted PCR metrics and the
+# amplicon coverage metrics.
 
-samples_file <- args[1]
-alignment_metrics_file <- args[2]
-targeted_pcr_metrics_file <- args[3]
-amplicon_coverage_file <- args[4]
-merged_metrics_file <- args[5]
-report_file <- args[6]
-# title <- args[7]
+suppressPackageStartupMessages(library(optparse))
+
+option_list <- list(
+
+  make_option(c("--samples"), dest = "samples_file",
+              help = "CSV file containing details of sample datasets (ID and Sample columns required)"),
+
+  make_option(c("--alignment-metrics"), dest = "alignment_metrics_file",
+              help = "Alignment metrics from Picard CollectAlignmentSummaryMetrics in collated tabular format"),
+
+  make_option(c("--targeted-pcr-metrics"), dest = "targeted_pcr_metrics_file",
+              help = "Targeted PCR metrics from Picard CollectTargetedPcrMetrics in collated tabular format"),
+
+  make_option(c("--amplicon-coverage"), dest = "amplicon_coverage_file",
+              help = "Amplicon coverage metrics file"),
+
+  make_option(c("--output-metrics"), dest = "output_metrics_file",
+              help = "Amplicon coverage metrics file"),
+
+  make_option(c("--output-report"), dest = "output_report_file",
+              help = "Output HTML report")
+)
+
+option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
+opt <- parse_args(option_parser)
+
+samples_file <- opt$samples_file
+alignment_metrics_file <- opt$alignment_metrics_file
+targeted_pcr_metrics_file <- opt$targeted_pcr_metrics_file
+amplicon_coverage_file <- opt$amplicon_coverage_file
+output_metrics_file <- opt$output_metrics_file
+output_report_file <- opt$output_report_file
+
+if (is.null(samples_file)) stop("Samples file must be specified")
+if (is.null(alignment_metrics_file)) stop("Alignment metrics file must be specified")
+if (is.null(targeted_pcr_metrics_file)) stop("Targeted PCR metrics file must be specified")
+if (is.null(amplicon_coverage_file)) stop("Alignment coverage file must be specified")
+if (is.null(output_metrics_file)) stop("Output merged metrics file must be specified")
+if (is.null(output_report_file)) stop("Output report file must be specified")
 
 suppressPackageStartupMessages({
   library(tidyverse)
@@ -41,8 +70,17 @@ to_embedded_image <- function(file, mimetype)
 }
 
 # sample metadata
-samples <- read_csv(samples_file) %>%
-  arrange(ID)
+samples <- read_csv(samples_file)
+
+expected_columns <- c("ID", "Sample")
+missing_columns <- setdiff(expected_columns, colnames(samples))
+if (length(missing_columns) > 0) {
+  stop("missing columns found in ", samples_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
+}
+
+samples <- samples %>%
+    select(all_of(expected_columns)) %>%
+    arrange(ID)
 
 ids <- samples$ID
 
@@ -127,10 +165,10 @@ merged_metrics <- merged_metrics %>%
   mutate(YIELD_OFF_TARGET = pmax(0, YIELD_USABLE_BASES - YIELD_USABLE_BASES_ON_AMPLICON))
 
 # write merged metrics
-if (str_ends(str_to_lower(merged_metrics_file), "\\.csv")) {
-  write_csv(merged_metrics, merged_metrics_file)
+if (str_ends(str_to_lower(output_metrics_file), "\\.csv")) {
+  write_csv(merged_metrics, output_metrics_file)
 } else {
-  write_tsv(merged_metrics, merged_metrics_file)
+  write_tsv(merged_metrics, output_metrics_file)
 }
 
 # correct percentages
@@ -318,7 +356,7 @@ report <- addTo(report, target_coverage_section)
 
 temp_report_file <- tempfile(pattern = "report_", fileext = "")
 writeReport(report, filename = temp_report_file, output = HTML.REPORT)
-file.copy(str_c(temp_report_file, ".html"), report_file)
+file.copy(str_c(temp_report_file, ".html"), output_report_file)
 
 file.remove(yield_plot_file)
 file.remove(mean_target_coverage_plot_file)
