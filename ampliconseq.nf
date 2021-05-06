@@ -17,9 +17,15 @@ if (params.help) {
 
 
 // -----------------------------------------------------------------------------
-// check/derive parameters
+// functions
 // -----------------------------------------------------------------------------
 
+// returns the heap size to be given to a Java task based on the task memory,
+// allowing for some overhead for the JVM
+def javaMemMB(task)
+{
+    return task.memory.toMega() - params.jvmOverhead
+}
 
 
 // -----------------------------------------------------------------------------
@@ -87,6 +93,7 @@ process extract_amplicon_regions {
         path "${id}.amplicon_coverage.txt", emit: coverage
 
     shell:
+        java_mem = javaMemMB(task)
         template "extract_amplicon_regions.sh"
 }
 
@@ -95,7 +102,6 @@ process extract_amplicon_regions {
 process pileup_counts {
     tag "${id}"
 
-    cpus 2
     memory { 4.GB * task.attempt }
     time { 1.hour * task.attempt }
     maxRetries 2
@@ -107,6 +113,7 @@ process pileup_counts {
         path "${id}.pileup.txt"
 
     shell:
+        java_mem = javaMemMB(task)
         template "pileup_counts.sh"
 }
 
@@ -116,7 +123,6 @@ process call_variants {
     tag "${id}"
     publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
 
-    cpus 2
     memory { 4.GB * task.attempt }
     time { 1.hour * task.attempt }
     maxRetries 2
@@ -129,6 +135,7 @@ process call_variants {
         path "${id}.variants.txt", emit: variants
 
     shell:
+        java_mem = javaMemMB(task)
         template "vardict.sh"
 }
 
@@ -149,6 +156,7 @@ process picard_metrics {
         path "${id}.targeted_pcr_metrics.txt", emit: targeted_pcr_metrics
 
     shell:
+        java_mem = javaMemMB(task)
         template "picard_metrics.sh"
 }
 
