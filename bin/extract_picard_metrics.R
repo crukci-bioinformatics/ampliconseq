@@ -14,16 +14,29 @@
 # Note that if an ID column was already present in the Picard metrics file it
 # would be overwritten. Currently no Picard metrics files have an ID column.
 
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2)
-{
-  message("Usage: extract_picard_metrics.R id metrics_file output_file")
-  quit(status = 1)
-}
+suppressPackageStartupMessages(library(optparse))
 
-id <- args[1]
-metrics_file <- args[2]
-output_file <- args[3]
+option_list <- list(
+
+  make_option(c("--id"), dest = "id",
+              help = "Identifier for the dataset used to populate an ID column in the output table"),
+
+  make_option(c("--metrics"), dest = "metrics_file",
+              help = "Picard metrics file"),
+
+  make_option(c("--output"), dest = "output_file",
+              help = "Output table")
+)
+
+option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
+opt <- parse_args(option_parser)
+
+id <- opt$id
+metrics_file <- opt$metrics_file
+output_file <- opt$output_file
+
+if (is.null(metrics_file)) stop("Metrics file must be specified")
+if (is.null(output_file)) stop("Output file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 

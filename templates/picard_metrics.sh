@@ -10,7 +10,10 @@ gatk CollectAlignmentSummaryMetrics \
     --REFERENCE_SEQUENCE !{reference_sequence} \
     --OUTPUT alignment_metrics.txt
 
-extract_picard_metrics.R !{id} alignment_metrics.txt !{id}.alignment_metrics.txt
+extract_picard_metrics.R \
+    --id=!{id} \
+    --metrics=alignment_metrics.txt \
+    --output=!{id}.alignment_metrics.txt
 
 
 # extract amplicon and target intervals in BED format and convert to Picard
@@ -38,5 +41,8 @@ gatk CollectTargetedPcrMetrics \
     --TARGET_INTERVALS targets.interval_list.txt \
     --OUTPUT targeted_pcr_metrics.txt
 
-extract_picard_metrics.R !{id} targeted_pcr_metrics.txt !{id}.targeted_pcr_metrics.txt
+extract_picard_metrics.R \
+    --id=!{id} \
+    --metrics=targeted_pcr_metrics.txt \
+    --output=!{id}.targeted_pcr_metrics.txt
 
