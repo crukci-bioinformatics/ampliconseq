@@ -40,7 +40,9 @@ process check_samples {
     script:
         checked_sample_sheet = "samples.checked.csv"
         """
-        check_samples_file.R ${sample_sheet} ${checked_sample_sheet}
+        check_samples_file.R \
+            --samples=${sample_sheet} \
+            --output=${checked_sample_sheet}
         """
 }
 

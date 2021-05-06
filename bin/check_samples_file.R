@@ -11,15 +11,25 @@
 # Checks the sample sheet file is valid, i.e. has the expected columns, etc.,
 # and outputs a cut-down version with only the expected columns.
 
-args <- commandArgs(trailingOnly = TRUE)
-if (length(args) < 2)
-{
-  message("Usage: check_samples_file.R samples_file output_samples_file")
-  quit(status = 1)
-}
+suppressPackageStartupMessages(library(optparse))
 
-samples_file <- args[1]
-output_file <- args[2]
+option_list <- list(
+
+  make_option(c("--samples"), dest = "samples_file",
+              help = "CSV/TSV file containing details of sample datasets (ID and Sample columns required)"),
+
+  make_option(c("--output"), dest = "output_file",
+              help = "Output sample sheet file in the format required for subsequent pipeline processes")
+)
+
+option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
+opt <- parse_args(option_parser)
+
+samples_file <- opt$samples_file
+output_file <- opt$output_file
+
+if (is.null(samples_file)) stop("Sample sheet file must be specified")
+if (is.null(output_file)) stop("Output file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
