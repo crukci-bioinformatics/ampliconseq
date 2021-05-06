@@ -1,10 +1,12 @@
 #!/usr/bin/env Rscript
 
+# ------------------------------------------------------------------------------
 # Copyright (c) 2021 CRUK Cambridge Institute - Bioinformatics Core
-
+#
 # Licensed under the MIT license (http://opensource.org/licenses/MIT).
 # This file may not be copied, modified, or distributed except according
 # to those terms.
+# ------------------------------------------------------------------------------
 
 # Computes background noise levels for substitutions at each amplicon
 # position fitting allele fractions for the substitution across all
@@ -66,8 +68,28 @@ minimum_number_for_fitting <- opt$minimum_number_for_fitting
 chunk_size <- opt$chunk_size
 read_chunk_size <- opt$read_chunk_size
 
-if (exclude_highest_fraction < 0 || exclude_highest_fraction >= 1) {
-  stop("Invalid value given for highest fraction of allele fractions to exclude from fitting")
+if (!is.integer(minimum_depth) || minimum_depth <= 0) {
+  stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
+}
+
+if (!is.double(exclude_highest_fraction) || exclude_highest_fraction < 0 || exclude_highest_fraction >= 1) {
+  stop("Invalid value given for highest fraction of allele fractions to exclude from fitting noise distribution")
+}
+
+if (!is.double(maximum_allele_fraction) || maximum_allele_fraction <= 0 || maximum_allele_fraction > 1) {
+  stop("Invalid value given for maximum allele fraction to include in fitting noise distributions")
+}
+
+if (!is.integer(minimum_number_for_fitting) || minimum_number_for_fitting < 5) {
+  stop("Invalid value given for minimum number of allele fractions required for fitting noise distributions")
+}
+
+if (!is.integer(chunk_size) || chunk_size < 100000) {
+  stop("Invalid chunk size for fitting noise distributions")
+}
+
+if (!is.integer(read_chunk_size) || read_chunk_size < 100000) {
+  stop("Invalid chunk size for reading pileup count data")
 }
 
 suppressPackageStartupMessages({
