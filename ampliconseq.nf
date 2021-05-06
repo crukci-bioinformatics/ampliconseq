@@ -47,8 +47,8 @@ process check_samples {
         checked_sample_sheet = "samples.checked.csv"
         """
         check_samples_file.R \
-            --samples=${sample_sheet} \
-            --output=${checked_sample_sheet}
+            --samples ${sample_sheet} \
+            --output ${checked_sample_sheet}
         """
 }
 
@@ -69,9 +69,9 @@ process create_non_overlapping_amplicon_groups {
         amplicon_groups = "amplicon_groups.txt"
         """
         create_non_overlapping_amplicon_groups.R \
-            --amplicons=${amplicon_details} \
-            --reference-sequence-index=${reference_sequence_index} \
-            --output=${amplicon_groups}
+            --amplicons ${amplicon_details} \
+            --reference-sequence-index ${reference_sequence_index} \
+            --output ${amplicon_groups}
         """
 }
 
@@ -164,7 +164,7 @@ process picard_metrics {
 // create alignment coverage report and combined alignment/coverage metrics table
 process alignment_coverage_report {
     executor "local"
-    publishDir "${params.outputDir}", mode: 'copy'
+    publishDir "${params.outputDir}", mode: "copy"
 
     input:
         path samples
@@ -181,19 +181,19 @@ process alignment_coverage_report {
         alignment_coverage_report = "alignment_coverage_report.html"
         """
         alignment_coverage_report.R \
-            --samples=${samples} \
-            --alignment-metrics=${alignment_metrics} \
-            --targeted-pcr-metrics=${targeted_pcr_metrics} \
-            --amplicon-coverage=${amplicon_coverage} \
-            --output-metrics=${alignment_coverage_metrics} \
-            --output-report=${alignment_coverage_report}
+            --samples ${samples} \
+            --alignment-metrics ${alignment_metrics} \
+            --targeted-pcr-metrics ${targeted_pcr_metrics} \
+            --amplicon-coverage ${amplicon_coverage} \
+            --output-metrics ${alignment_coverage_metrics} \
+            --output-report ${alignment_coverage_report}
         """
 }
 
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
-    publishDir "${params.outputDir}", mode: 'copy'
+    publishDir "${params.outputDir}", mode: "copy"
 
     input:
         path pileup_counts
@@ -207,15 +207,15 @@ process compute_background_noise_thresholds {
         dataset_thresholds = "dataset_noise_thresholds.txt"
         """
         compute_background_noise_thresholds.R \
-            --pileup-counts=${pileup_counts} \
-            --position-thresholds=${position_thresholds} \
-            --dataset-thresholds=${dataset_thresholds} \
-            --minimum-depth=100 \
-            --exclude-highest-fraction=0.1 \
-            --maximum-allele-fraction=0.03 \
-            --minimum-number-for-fitting=10 \
-            --chunk-size=500000 \
-            --read-chunk-size=100000
+            --pileup-counts ${pileup_counts} \
+            --position-thresholds ${position_thresholds} \
+            --dataset-thresholds ${dataset_thresholds} \
+            --minimum-depth ${params.minimumDepthForBackgroundNoise} \
+            --exclude-highest-fraction ${params.excludeHighestFractionForBackgroundNoise} \
+            --maximum-allele-fraction ${params.maximumAlleleFractionForBackgroundNoise} \
+            --minimum-number-for-fitting ${params.minimumNumberForFittingBackgroundNoise} \
+            --chunk-size ${params.chunkSizeForFittingBackgroundNoise} \
+            --read-chunk-size ${params.readChunkSizeForFittingBackgroundNoise}
         """
 }
 

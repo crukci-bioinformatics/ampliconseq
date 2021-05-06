@@ -11,7 +11,9 @@ do
         --input !{id}.${group}.bam \
         --amplicon-intervals targets.bed \
         --reference-sequence !{reference_sequence} \
-        --output !{id}.${group}.pileup.txt
+        --output !{id}.${group}.pileup.txt \
+        --minimum-mapping-quality !{params.minimumMappingQualityForPileup} \
+        --minimum-base-quality !{params.minimumBaseQualityForPileup}
 done
 
 awk 'NR == 1 || FNR > 1' !{id}.*.pileup.txt > !{id}.pileup.txt

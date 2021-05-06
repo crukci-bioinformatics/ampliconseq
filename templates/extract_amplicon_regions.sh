@@ -12,8 +12,8 @@ do
         --amplicon-intervals amplicons.bed \
         --output !{id}.${group}.bam \
         --coverage !{id}.${group}.amplicon_coverage.txt \
-        --maximum-distance 0 \
-        --require-both-ends-anchored \
+        --maximum-distance !{params.maxDistanceFromAmpliconEnd} \
+        --require-both-ends-anchored=!{params.requireBothEndsAnchored} \
         --unmark-duplicate-reads
 done
 
