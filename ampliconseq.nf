@@ -219,6 +219,22 @@ process compute_background_noise_thresholds {
         """
 }
 
+// annotate variants using Ensembl VEP
+process variant_effect_predictor {
+
+    input:
+        path variants
+        path vep_cache_dir
+
+    output:
+        path variant_annotations
+
+    shell:
+        variant_annotations = "variant_annotations.txt"
+        template "variant_effect_predictor.sh"
+}
+
+
 // -----------------------------------------------------------------------------
 // workflow
 // -----------------------------------------------------------------------------
@@ -235,6 +251,8 @@ workflow {
     reference_sequence = reference_sequence_fasta
         .combine(reference_sequence_index)
         .combine(reference_sequence_dictionary)
+
+    vep_cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
 
     // check sample sheet
     samples = check_samples(sample_sheet)
@@ -287,6 +305,9 @@ workflow {
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
     compute_background_noise_thresholds(collected_pileup_counts)
+
+    // annotate variants using Ensembl VEP
+    variant_effect_predictor(collected_variants, vep_cache_dir)
 }
 
 
