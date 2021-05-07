@@ -90,10 +90,11 @@ process extract_amplicon_regions {
 
     output:
         tuple val(id), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
-        path "${id}.amplicon_coverage.txt", emit: coverage
+        path amplicon_coverage, emit: coverage
 
     shell:
         java_mem = javaMemMB(task)
+        amplicon_coverage = "${id}.amplicon_coverage.txt"
         template "extract_amplicon_regions.sh"
 }
 
@@ -110,10 +111,11 @@ process pileup_counts {
         tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path "${id}.pileup.txt"
+        path pileup
 
     shell:
         java_mem = javaMemMB(task)
+        pileup = "${id}.pileup.txt"
         template "pileup_counts.sh"
 }
 
@@ -131,11 +133,13 @@ process call_variants {
         tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path "${id}.vcf", emit: vcf
-        path "${id}.variants.txt", emit: variants
+        path vcf, emit: vcf
+        path variants, emit: variants
 
     shell:
         java_mem = javaMemMB(task)
+        vcf = "${id}.vcf"
+        variants = "${id}.variants.txt"
         template "vardict.sh"
 }
 
@@ -152,11 +156,13 @@ process picard_metrics {
         tuple val(id), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path "${id}.alignment_metrics.txt", emit: alignment_metrics
-        path "${id}.targeted_pcr_metrics.txt", emit: targeted_pcr_metrics
+        path alignment_metrics, emit: alignment_metrics
+        path targeted_pcr_metrics, emit: targeted_pcr_metrics
 
     shell:
         java_mem = javaMemMB(task)
+        alignment_metrics = "${id}.alignment_metrics.txt"
+        targeted_pcr_metrics = "${id}.targeted_pcr_metrics.txt"
         template "picard_metrics.sh"
 }
 

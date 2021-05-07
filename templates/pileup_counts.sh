@@ -16,5 +16,5 @@ do
         --minimum-base-quality !{params.minimumBaseQualityForPileup}
 done
 
-awk 'NR == 1 || FNR > 1' "!{id}".*.pileup.txt > "!{id}.pileup.txt"
+awk 'NR == 1 || FNR > 1' "!{id}".*.pileup.txt > "!{pileup}"
 

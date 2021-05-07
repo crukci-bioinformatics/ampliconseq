@@ -13,7 +13,7 @@ gatk --java-options "-Xmx!{java_mem}m" CollectAlignmentSummaryMetrics \
 extract_picard_metrics.R \
     --id "!{id}" \
     --metrics alignment_metrics.txt \
-    --output "!{id}.alignment_metrics.txt"
+    --output "!{alignment_metrics}"
 
 
 # extract amplicon and target intervals in BED format and convert to Picard
@@ -44,5 +44,5 @@ gatk --java-options "-Xmx!{java_mem}m" CollectTargetedPcrMetrics \
 extract_picard_metrics.R \
     --id "!{id}" \
     --metrics targeted_pcr_metrics.txt \
-    --output "!{id}.targeted_pcr_metrics.txt"
+    --output "!{targeted_pcr_metrics}"
 
