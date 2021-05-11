@@ -94,6 +94,10 @@
                             <mainClass>org.cruk.ampliconseq.AnnotateVcfWithAmpliconIds</mainClass>
                             <id>annotate-vcf-with-amplicon-ids</id>
                         </program>
+                        <program>
+                            <mainClass>org.cruk.ampliconseq.AddAssortedAnnotationsToVcf</mainClass>
+                            <id>add-assorted-annotations-to-vcf</id>
+                        </program>
                     </programs>
                 </configuration>
             </plugin>
