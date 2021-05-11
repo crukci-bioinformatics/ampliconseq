@@ -15,7 +15,7 @@ suppressPackageStartupMessages(library(optparse))
 
 option_list <- list(
 
-  make_option(c("--samples"), dest = "samples_file",
+  make_option(c("--input"), dest = "input_file",
               help = "CSV/TSV file containing details of sample datasets (ID and Sample columns required)"),
 
   make_option(c("--output"), dest = "output_file",
@@ -25,37 +25,37 @@ option_list <- list(
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
 opt <- parse_args(option_parser)
 
-samples_file <- opt$samples_file
+input_file <- opt$input_file
 output_file <- opt$output_file
 
-if (is.null(samples_file)) stop("Sample sheet file must be specified")
+if (is.null(input_file)) stop("Sample sheet file must be specified")
 if (is.null(output_file)) stop("Output file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
 # read and check sample sheet
-if (str_ends(str_to_lower(samples_file), "\\.csv")) {
-  samples <- read_csv(samples_file, col_types = cols(.default = col_character()))
+if (str_ends(str_to_lower(input_file), "\\.csv")) {
+  samples <- read_csv(input_file, col_types = cols(.default = col_character()))
 } else {
-  samples <- read_tsv(samples_file, col_types = cols(.default = col_character()))
+  samples <- read_tsv(input_file, col_types = cols(.default = col_character()))
 }
 
 expected_columns <- c("ID", "Sample")
 missing_columns <- setdiff(expected_columns, colnames(samples))
 if (length(missing_columns) > 0) {
-  stop("missing columns found in ", samples_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
+  stop("missing columns found in ", input_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
 }
 
 if (nrow(samples) == 0) {
-  stop("empty samples file: ", samples_file)
+  stop("empty samples file: ", input_file)
 }
 
 if (nrow(filter(samples, is.na(samples$ID))) > 0) {
-  stop("missing IDs found in ", samples_file)
+  stop("missing IDs found in ", input_file)
 }
 
 if (nrow(filter(samples, is.na(samples$Sample))) > 0) {
-  stop("missing Sample names found in ", samples_file)
+  stop("missing Sample names found in ", input_file)
 }
 
 duplicates <- samples %>%
@@ -63,7 +63,7 @@ duplicates <- samples %>%
   filter(n > 1) %>%
   pull(ID)
 if (length(duplicates) > 0) {
-  stop("duplicate IDs found in ", samples_file, ": '", str_c(duplicates, collapse = "', '"), "'")
+  stop("duplicate IDs found in ", input_file, ": '", str_c(duplicates, collapse = "', '"), "'")
 }
 
 # write new samples file containing only the expected columns
