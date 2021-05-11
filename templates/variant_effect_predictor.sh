@@ -3,7 +3,7 @@
 set -e -o pipefail
 
 create_distinct_vcf.R \
-    --variants !{variants} \
+    --input !{variants} \
     --output distinct_variants.vcf
 
 vep \
