@@ -39,17 +39,19 @@ process check_inputs {
 
     input:
         path sample_sheet
+        path specific_variants
+        path blacklisted_variants
 
     output:
-        path checked_sample_sheet
+        path checked_sample_sheet, emit: samples
+        path checked_specific_variants, emit: specific_variants
+        path checked_blacklisted_variants, emit: blacklisted_variants
 
-    script:
+    shell:
         checked_sample_sheet = "samples.checked.csv"
-        """
-        check_sample_sheet.R \
-            --samples ${sample_sheet} \
-            --output ${checked_sample_sheet}
-        """
+        checked_specific_variants = "specific_variants.checked.csv"
+        checked_blacklisted_variants = "blacklisted_variants.checked.csv"
+        template "check_inputs.sh"
 }
 
 
@@ -196,6 +198,7 @@ process alignment_coverage_report {
         """
 }
 
+
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
@@ -225,6 +228,7 @@ process compute_background_noise_thresholds {
         """
 }
 
+
 // annotate variants using Ensembl VEP
 process variant_effect_predictor {
 
@@ -239,6 +243,7 @@ process variant_effect_predictor {
         variant_annotations = "vep_annotations.txt"
         template "variant_effect_predictor.sh"
 }
+
 
 // additional variant annotations (sequence context, indel length, etc.)
 process annotate_variants {
@@ -265,6 +270,8 @@ workflow {
 
     sample_sheet = channel.fromPath(params.sampleSheet, checkIfExists: true)
     amplicon_details = channel.fromPath(params.ampliconDetails, checkIfExists: true)
+    specific_variants = channel.fromPath(params.specificVariants, checkIfExists: true)
+    blacklisted_variants = channel.fromPath(params.blacklistedVariants, checkIfExists: true)
 
     reference_sequence_fasta_file = file("${params.referenceGenomeFasta}")
     reference_sequence_fasta = channel.fromPath(params.referenceGenomeFasta, checkIfExists: true)
@@ -277,7 +284,11 @@ workflow {
     vep_cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
 
     // check sample sheet
-    samples = check_inputs(sample_sheet)
+    check_inputs(sample_sheet, specific_variants, blacklisted_variants)
+
+    samples = check_inputs.out.samples
+    specific_variants = check_inputs.out.specific_variants
+    blacklisted_variants = check_inputs.out.blacklisted_variants
 
     // create groups of non-overlapping amplicons
     amplicon_groups = create_non_overlapping_amplicon_groups(
