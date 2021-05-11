@@ -118,23 +118,4 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
         logger.info("Finished");
         return 0;
     }
-
-    // annotation names
-    private static final String INDEL_LENGTH = "IndelLength";
-
-    /**
-     * Add header lines for the added INFO fields.
-     *
-     * @param header the VCF header
-     */
-    private void addInfoHeaderLines(VCFHeader header) {
-        header.addMetaDataLine(
-                new VCFInfoHeaderLine(INDEL_LENGTH, 1, VCFHeaderLineType.Integer, "The length of the indel."));
-    }
-
-    private void addIndelLength(VariantContext variant) {
-        if (variant.isIndel()) {
-            
-        }
-    }
 }
