@@ -47,7 +47,9 @@ distinct_variants <- variants %>%
   select(all_of(expected_columns)) %>%
   distinct()
 
+write_lines("##fileformat=VCFv4.2", output_file)
+
 distinct_variants %>%
   transmute(`#CHROM` = Chromosome, POS = Position, ID = NA, REF = Ref, ALT = Alt, QUAL = NA, FILTER = NA, INFO = NA) %>%
-  write_tsv(output_file, na = ".")
+  write_tsv(output_file, append = TRUE, col_names = TRUE, na = ".")
 
