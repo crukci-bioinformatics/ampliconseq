@@ -236,8 +236,24 @@ process variant_effect_predictor {
         path variant_annotations
 
     shell:
-        variant_annotations = "variant_annotations.txt"
+        variant_annotations = "vep_annotations.txt"
         template "variant_effect_predictor.sh"
+}
+
+// additional variant annotations (sequence context, indel length, etc.)
+process annotate_variants {
+    executor "local"
+
+    input:
+        tuple path(variants), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path variant_annotations
+
+    shell:
+        java_mem = javaMemMB(task)
+        variant_annotations = "variant_annotations.txt"
+        template "annotate_variants.sh"
 }
 
 
@@ -314,6 +330,9 @@ workflow {
 
     // annotate variants using Ensembl VEP
     variant_effect_predictor(collected_variants, vep_cache_dir)
+
+    // additional annotations (sequence context, indel length, etc.)
+    annotate_variants(collected_variants.combine(reference_sequence))
 }
 
 
