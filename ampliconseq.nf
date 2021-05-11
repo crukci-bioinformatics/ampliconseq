@@ -32,9 +32,9 @@ def javaMemMB(task)
 // processes
 // -----------------------------------------------------------------------------
 
-// check sample sheet is valid a create a validated version to be used in
-// subsequent processes
-process check_samples {
+// check input files are valid and create validated versions in CSV format
+// (inputs can be either TSV or CSV) for use in subsequent processes
+process check_inputs {
     executor "local"
 
     input:
@@ -46,7 +46,7 @@ process check_samples {
     script:
         checked_sample_sheet = "samples.checked.csv"
         """
-        check_samples_file.R \
+        check_sample_sheet.R \
             --samples ${sample_sheet} \
             --output ${checked_sample_sheet}
         """
@@ -277,7 +277,7 @@ workflow {
     vep_cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
 
     // check sample sheet
-    samples = check_samples(sample_sheet)
+    samples = check_inputs(sample_sheet)
 
     // create groups of non-overlapping amplicons
     amplicon_groups = create_non_overlapping_amplicon_groups(
@@ -349,13 +349,15 @@ def printParameterSummary() {
         Sample sheet              : ${params.sampleSheet}
         BAM directory             : ${params.bamDir}
         Amplicon details          : ${params.ampliconDetails}
+        specificVariants          : ${params.specificVariants}
+        blacklistedVariants       : ${params.blacklistedVariants}
         Reference genome sequence : ${params.referenceGenomeFasta}
-        Minimum allele fraction   : ${params.minimumAlleleFraction}
         VEP cache directory       : ${params.vepCacheDir}
         Species                   : ${params.vepSpecies}
         Assembly                  : ${params.vepAssembly}
         Output directory          : ${params.outputDir}
         Output prefix             : ${params.outputPrefix}
+        Minimum allele fraction   : ${params.minimumAlleleFraction}
     """.stripIndent()
     log.info ""
 }
@@ -375,13 +377,15 @@ def helpMessage() {
             --sampleSheet              CSV/TSV file containing details of sample datasets (ID and Sample columns required)
             --bamDir                   Directory in which BAM files are located
             --ampliconDetails          CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
+            --specificVariants         CSV/TSV file containing specific (or known) variants that are included in the summary regardless of whether these are called or not (Sample, Chromosome, Position, Ref, Alt columns required)
+            --blacklistedVariants      CSV/TSV file containing blacklisted variants that will be filtered (Chromosome, Position, Ref, Alt columns required)
             --referenceGenomeFasta     FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
-            --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
             --vepCacheDir              Directory in which to install Ensembl VEP cache files
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
             --outputDir                Directory to which output files are written
             --outputPrefix             Prefix for output file names
+            --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
 
         Alternatively, override settings using a configuration file such as the
         following:
@@ -391,12 +395,12 @@ def helpMessage() {
             bamDir                = "bam"
             ampliconDetails       = "amplicons.csv"
             referenceGenomeFasta  = "/reference_data/GRCh37.fa"
-            minimumAlleleFraction = 0.01
-            vepCacheDir           = "vep_cache"
+            vepCacheDir           = "/reference_data/vep_cache"
             vepSpecies            = "homo_sapiens"
             vepAssembly           = "GRCh37"
             outputDir             = "results"
             outputPrefix          = ""
+            minimumAlleleFraction = 0.01
         }
 
         and run as follows:
