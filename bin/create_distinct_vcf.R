@@ -9,7 +9,7 @@
 # ------------------------------------------------------------------------------
 
 # Creates a VCF file containing the unique set of variants from the given input
-# table to be used as input to Ensembl Variant Effect Predictor.
+# table, e.g. to be used as input to Ensembl Variant Effect Predictor.
 
 suppressPackageStartupMessages(library(optparse))
 
