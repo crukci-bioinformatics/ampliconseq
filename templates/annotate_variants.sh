@@ -14,7 +14,7 @@ add-assorted-annotations-to-vcf \
 
 gatk --java-options "-Xmx!{java_mem}m" VariantsToTable \
     --variant distinct_variants.annotated.vcf \
-    --output "!{variant_annotations}" \
+    --output !{variant_annotations} \
     --fields CHROM \
     --fields POS \
     --fields REF \

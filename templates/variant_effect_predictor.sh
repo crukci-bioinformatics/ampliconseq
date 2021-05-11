@@ -26,5 +26,5 @@ vep \
 
 vep_vcf_to_tabular.R \
     --vcf distinct_variants.vep.vcf \
-    --output "!{variant_annotations}"
+    --output !{variant_annotations}
 
