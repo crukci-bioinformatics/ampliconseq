@@ -38,7 +38,7 @@ import picocli.CommandLine.Option;
  *
  * @author eldrid01
  */
-@Command(name = "pileup-counts", versionProvider = AnnotateVcfWithAmpliconIds.class, description = "\nAnnotates variants with the id of the overlapping amplicon.\n", mixinStandardHelpOptions = true)
+@Command(name = "annotate-vcf-with-amplicon-ids", versionProvider = AnnotateVcfWithAmpliconIds.class, description = "\nAnnotates variants with the id of the overlapping amplicon.\n", mixinStandardHelpOptions = true)
 public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
@@ -117,5 +117,24 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
 
         logger.info("Finished");
         return 0;
+    }
+
+    // annotation names
+    private static final String INDEL_LENGTH = "IndelLength";
+
+    /**
+     * Add header lines for the added INFO fields.
+     *
+     * @param header the VCF header
+     */
+    private void addInfoHeaderLines(VCFHeader header) {
+        header.addMetaDataLine(
+                new VCFInfoHeaderLine(INDEL_LENGTH, 1, VCFHeaderLineType.Integer, "The length of the indel."));
+    }
+
+    private void addIndelLength(VariantContext variant) {
+        if (variant.isIndel()) {
+            
+        }
     }
 }
