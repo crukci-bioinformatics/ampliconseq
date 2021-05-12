@@ -45,14 +45,14 @@ gatk --java-options "-Xmx!{java_mem}m" VariantsToTable \
     --fields POS \
     --fields REF \
     --fields ALT \
-    --fields QUAL \
-    --fields FILTER \
-    --fields TYPE \
     --fields MULTI-ALLELIC \
+    --fields TYPE \
+    --fields FILTER \
+    --fields QUAL \
     --genotype-fields DP \
     --asGenotypeFieldsToTake AD \
     --asGenotypeFieldsToTake AF
 
-echo -e "ID\tAmplicon\tChromosome\tPosition\tRef\tAlt\tQuality\tFilters\tType\tMultiallelic\tDepth\tRef count\tAlt count\tAllele fraction" > "!{variants}"
+echo -e "ID\tAmplicon\tChromosome\tPosition\tRef\tAlt\tMultiallelic\tType\tFilters\tQuality\tDepth\tRef count\tAlt count\tAllele fraction" > "!{variants}"
 awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 && $1 != "NA" { split($11, ad, ","); print "!{id}", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ad[1], ad[2], $12 }' variant_table.txt >> "!{variants}"
 
