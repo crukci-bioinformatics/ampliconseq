@@ -60,8 +60,8 @@ if (nrow(multiallelic_variants) > 0) {
   stop(input_file, " should not contain multi-allelic variants")
 }
 
-# write specific variants to CSV file
+# write specific variants to TSV file
 blacklisted_variants %>%
   distinct() %>%
-  write_csv(output_file)
+  write_tsv(output_file)
 
