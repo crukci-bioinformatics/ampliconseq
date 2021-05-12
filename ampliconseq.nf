@@ -230,6 +230,31 @@ process compute_background_noise_thresholds {
 }
 
 
+// expand variant table to include specific variants and missing calls within
+// sample replicates
+process add_specific_variants {
+    executor "local"
+
+    input:
+        path samples
+        path called_variants
+        path specific_variants
+
+    output:
+        path all_variants
+
+    script:
+        all_variants = "all_variants.txt"
+        """
+        add_specific_variants.R \
+            --samples ${samples} \
+            --called-variants ${called_variants} \
+            --specific-variants ${specific_variants} \
+            --output ${all_variants}
+        """
+}
+
+
 // annotate variants using Ensembl VEP
 process variant_effect_predictor {
 
@@ -326,8 +351,11 @@ workflow {
     call_variants(extract_amplicon_regions.out.bam.combine(reference_sequence))
 
     // collect variant calls for all samples
-    collected_variants = call_variants.out.variants
+    called_variants = call_variants.out.variants
         .collectFile(name: "variants.txt", keepHeader: true)
+
+    // combine called variants with known/expected variants for specific calling
+    variants = add_specific_variants(samples, called_variants, specific_variants)
 
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -341,10 +369,10 @@ workflow {
     compute_background_noise_thresholds(collected_pileup_counts)
 
     // annotate variants using Ensembl VEP
-    variant_effect_predictor(collected_variants, vep_cache_dir)
+    variant_effect_predictor(variants, vep_cache_dir)
 
     // additional annotations (sequence context, indel length, etc.)
-    annotate_variants(collected_variants.combine(reference_sequence))
+    annotate_variants(variants.combine(reference_sequence))
 }
 
 
