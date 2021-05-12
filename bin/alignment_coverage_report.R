@@ -17,7 +17,7 @@ suppressPackageStartupMessages(library(optparse))
 option_list <- list(
 
   make_option(c("--samples"), dest = "samples_file",
-              help = "CSV file containing details of sample datasets (ID and Sample columns required)"),
+              help = "Sample sheet file (ID and Sample columns required)"),
 
   make_option(c("--alignment-metrics"), dest = "alignment_metrics_file",
               help = "Alignment metrics from Picard CollectAlignmentSummaryMetrics in collated tabular format"),
@@ -70,7 +70,7 @@ to_embedded_image <- function(file, mimetype)
 }
 
 # sample metadata
-samples <- read_csv(samples_file)
+samples <- read_tsv(samples_file)
 
 expected_columns <- c("ID", "Sample")
 missing_columns <- setdiff(expected_columns, colnames(samples))
