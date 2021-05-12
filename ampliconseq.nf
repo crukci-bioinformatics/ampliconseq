@@ -188,6 +188,7 @@ process add_specific_variants {
         path samples
         path called_variants
         path specific_variants
+        path reference_sequence_index
 
     output:
         path all_variants
@@ -199,6 +200,7 @@ process add_specific_variants {
             --samples ${samples} \
             --called-variants ${called_variants} \
             --specific-variants ${specific_variants} \
+            --reference-sequence-index ${reference_sequence_index} \
             --output ${all_variants}
         """
 }
@@ -307,6 +309,7 @@ process variant_effect_predictor {
 
     input:
         path variants
+        path reference_sequence_index
         path vep_cache_dir
 
     output:
@@ -402,7 +405,7 @@ workflow {
         .collectFile(name: "variants.txt", keepHeader: true)
 
     // combine called variants with known/expected variants for specific calling
-    add_specific_variants(samples, called_variants, specific_variants)
+    add_specific_variants(samples, called_variants, specific_variants, reference_sequence_index)
 
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -426,7 +429,7 @@ workflow {
     )
 
     // annotate variants using Ensembl VEP
-    variant_effect_predictor(variants, vep_cache_dir)
+    variant_effect_predictor(variants, reference_sequence_index, vep_cache_dir)
 
     // additional annotations (sequence context, indel length, etc.)
     annotate_variants(variants.combine(reference_sequence))

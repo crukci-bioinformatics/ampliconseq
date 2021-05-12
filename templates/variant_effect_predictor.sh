@@ -4,6 +4,7 @@ set -e -o pipefail
 
 create_distinct_vcf.R \
     --input !{variants} \
+    --reference-sequence-index !{reference_sequence_index} \
     --output distinct_variants.vcf
 
 vep \

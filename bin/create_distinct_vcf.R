@@ -18,6 +18,9 @@ option_list <- list(
   make_option(c("--input"), dest = "input_file",
               help = "CSV/TSV file containing variants (Chromosome, Position, Ref and Alt columns required)"),
 
+  make_option(c("--reference-sequence-index"), dest = "reference_sequence_index_file",
+              help = "Index file for the reference genome sequence used for chromosome sort order (expected to have .fai extension)"),
+
   make_option(c("--output"), dest = "output_file",
               help = "Output VCF file containing an entry for each distinct variant")
 )
@@ -26,9 +29,11 @@ option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = op
 opt <- parse_args(option_parser)
 
 input_file <- opt$input_file
+reference_sequence_index_file <- opt$reference_sequence_index_file
 output_file <- opt$output_file
 
 if (is.null(input_file)) stop("Input variant file must be specified")
+if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(output_file)) stop("Output VCF file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
@@ -52,10 +57,23 @@ if (nrow(missing_values) > 0) {
   stop("missing values found in ", input_file)
 }
 
-# note that dplyr distinct function retains the same ordering for the subset of
-# rows
-distinct_variants <- distinct(variants)
+# convert positions to integer values
+variants <- mutate(variants, Position = parse_integer(Position))
+missing_values <- filter(variants, is.na(Position))
+if (nrow(missing_values) > 0) {
+  stop("variants with non-integer coordinates found in ", input_file)
+}
 
+# read reference genome index file
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+
+# get unique set of variants in coordinate sorted order
+distinct_variants <- variants %>%
+  distinct(Chromosome, Position, Ref, Alt) %>%
+  mutate(Chromosome = factor(Chromosome, levels = chromosomes$Chromosome)) %>%
+  arrange(Chromosome, Position, Ref, Alt)
+
+# write output VCF
 write_lines("##fileformat=VCFv4.2", output_file)
 
 distinct_variants %>%
