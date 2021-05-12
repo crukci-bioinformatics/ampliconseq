@@ -225,6 +225,28 @@ process pileup_counts {
 }
 
 
+// add depth and allele fraction from pileup counts to variants
+process add_pileup_allele_fractions {
+    executor "local"
+
+    input:
+        path variants
+        path pileup_counts
+
+    output:
+        path variants_with_pileup_af
+
+    script:
+        variants_with_pileup_af = "variants_with_pileup_af.txt"
+        """
+        add_pileup_allele_fractions.R \
+            --variants ${variants} \
+            --pileup-counts ${pileup_counts} \
+            --output ${variants_with_pileup_af}
+        """
+}
+
+
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
@@ -355,7 +377,7 @@ workflow {
         .collectFile(name: "variants.txt", keepHeader: true)
 
     // combine called variants with known/expected variants for specific calling
-    variants = add_specific_variants(samples, called_variants, specific_variants)
+    all_variants = add_specific_variants(samples, called_variants, specific_variants)
 
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -363,6 +385,9 @@ workflow {
     // collect pileup counts for all samples
     collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup_counts.txt", keepHeader: true)
+
+    // add depth and allele fraction from pileup counts to variants
+    variants = add_pileup_allele_fractions(all_variants, collected_pileup_counts)
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
