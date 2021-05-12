@@ -27,7 +27,7 @@ option_list <- list(
   make_option(c("--position-thresholds"), dest = "position_thresholds_file",
               help = "Output thresholds file for background noise for each substitution at each amplicon position"),
 
-  make_option(c("--dataset-thresholds"), dest = "dataset_thresholds_file",
+  make_option(c("--library-thresholds"), dest = "library_thresholds_file",
               help = "Output thresholds file for background noise for each substitution type within each sample/library"),
 
   make_option(c("--minimum-depth"), dest = "minimum_depth", type = "integer", default = 100,
@@ -54,7 +54,7 @@ opt <- parse_args(option_parser)
 
 pileup_counts_file <- opt$pileup_counts_file
 position_thresholds_file <- opt$position_thresholds_file
-dataset_thresholds_file <- opt$dataset_thresholds_file
+library_thresholds_file <- opt$library_thresholds_file
 minimum_depth <- opt$minimum_depth
 exclude_highest_fraction <- opt$exclude_highest_fraction
 maximum_allele_fraction <- opt$maximum_allele_fraction
@@ -64,7 +64,7 @@ read_chunk_size <- opt$read_chunk_size
 
 if (is.null(pileup_counts_file)) stop("Pileup counts file must be specified")
 if (is.null(position_thresholds_file)) stop("Position noise thresholds output file must be specified")
-if (is.null(dataset_thresholds_file)) stop("Dataset noise thresholds output file must be specified")
+if (is.null(library_thresholds_file)) stop("Library noise thresholds output file must be specified")
 
 if (!is.integer(minimum_depth) || minimum_depth <= 0) {
   stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
@@ -145,7 +145,7 @@ amplicon_position_row_counts <- tibble(
   n = integer()
 )
 
-dataset_reference_base_row_counts <- tibble(
+library_reference_base_row_counts <- tibble(
   ID = character(),
   `Reference base` = character(),
   n = integer()
@@ -161,25 +161,25 @@ collect_row_counts <- function(data, pos) {
     bind_rows(amplicon_position_row_counts) %>%
     count(Amplicon, Chromosome, Position, wt = n)
 
-  dataset_reference_base_row_counts <<- data %>%
+  library_reference_base_row_counts <<- data %>%
     count(ID, `Reference base`) %>%
-    bind_rows(dataset_reference_base_row_counts) %>%
+    bind_rows(library_reference_base_row_counts) %>%
     count(ID, `Reference base`, wt = n)
 }
 
 result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_row_counts), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
 
-dataset_row_counts <- count(dataset_reference_base_row_counts, ID, wt = n)
+library_row_counts <- count(library_reference_base_row_counts, ID, wt = n)
 
-number_of_datasets <- nrow(dataset_row_counts)
+number_of_libraries <- nrow(library_row_counts)
 number_of_positions <- nrow(amplicon_position_row_counts)
 
 message("Total number of pileup count records: ", total)
-message("Number of samples/libraries: ", number_of_datasets)
+message("Number of libraries: ", number_of_libraries)
 message("Distinct target positions: ", number_of_positions)
 
 compute_position_thresholds <- nrow(amplicon_position_row_counts) > 0 && max(amplicon_position_row_counts$n) >= minimum_number_for_fitting
-compute_dataset_thresholds <- nrow(dataset_reference_base_row_counts) > 0 && max(dataset_reference_base_row_counts$n) >= minimum_number_for_fitting
+compute_library_thresholds <- nrow(library_reference_base_row_counts) > 0 && max(library_reference_base_row_counts$n) >= minimum_number_for_fitting
 
 number_of_chunks <- ceiling(total / chunk_size)
 message("Number of chunks: ", number_of_chunks)
@@ -193,9 +193,9 @@ chunk_file_prefix <- tempfile("pileup_counts.", getwd())
 create_position_chunk_files <- function(data, pos) {
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
-    chunk_datasets <- filter(amplicon_position_row_counts, Chunk == chunk)
+    chunk_data <- filter(amplicon_position_row_counts, Chunk == chunk)
     data %>%
-      semi_join(chunk_datasets, by = c("Amplicon", "Chromosome", "Position")) %>%
+      semi_join(chunk_data, by = c("Amplicon", "Chromosome", "Position")) %>%
       write_tsv(chunk_file, append = pos > 1)
   }
 }
@@ -211,7 +211,7 @@ if (compute_position_thresholds) {
 
   result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_position_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
 
-  message(as.character(Sys.time()), "  Computing position/substitution thresholds")
+  message(as.character(Sys.time()), "  Computing position substitution thresholds")
 
   for (chunk in 1:number_of_chunks) {
 
@@ -274,31 +274,31 @@ if (compute_position_thresholds) {
 }
 
 
-# Compute dataset substitution thresholds
+# Compute library substitution thresholds
 # ---------------------------------------
 
-create_dataset_chunk_files <- function(data, pos) {
+create_library_chunk_files <- function(data, pos) {
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
-    chunk_datasets <- filter(dataset_row_counts, Chunk == chunk)
+    chunk_data <- filter(library_row_counts, Chunk == chunk)
     data %>%
-      semi_join(chunk_datasets, by = "ID") %>%
+      semi_join(chunk_data, by = "ID") %>%
       write_tsv(chunk_file, append = pos > 1)
   }
 }
 
-if (compute_dataset_thresholds) {
+if (compute_library_thresholds) {
 
-  message(as.character(Sys.time()), "  Creating dataset chunk files")
+  message(as.character(Sys.time()), "  Creating library chunk files")
 
-  chunk_size <- ceiling(nrow(dataset_row_counts) / number_of_chunks)
+  chunk_size <- ceiling(nrow(library_row_counts) / number_of_chunks)
 
-  dataset_row_counts <- dataset_row_counts %>%
-    mutate(Chunk = rep(1:number_of_chunks, each = chunk_size)[1:nrow(dataset_row_counts)])
+  library_row_counts <- library_row_counts %>%
+    mutate(Chunk = rep(1:number_of_chunks, each = chunk_size)[1:nrow(library_row_counts)])
 
-  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_dataset_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
+  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_library_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
 
-  message(as.character(Sys.time()), "  Computing dataset/substitution thresholds")
+  message(as.character(Sys.time()), "  Computing library substitution thresholds")
 
   for (chunk in 1:number_of_chunks) {
 
@@ -338,14 +338,14 @@ if (compute_dataset_thresholds) {
     message("User time:    ", time_summary[["user.self"]], "s")
     message("Elapsed time: ", time_summary[["elapsed"]], "s")
 
-    write_tsv(thresholds, dataset_thresholds_file, append = chunk > 1)
+    write_tsv(thresholds, library_thresholds_file, append = chunk > 1)
 
     file.remove(chunk_file)
   }
 
 } else {
 
-  message("Insufficient pileup count data to model background noise for dataset substitutions")
+  message("Insufficient pileup count data to model background noise for library substitutions")
 
   write_tsv(
     tibble(
@@ -354,7 +354,7 @@ if (compute_dataset_thresholds) {
       `Alternate allele` = character(),
       `Allele fraction threshold` = double()
     ),
-    dataset_thresholds_file
+    library_thresholds_file
   )
 }
 
