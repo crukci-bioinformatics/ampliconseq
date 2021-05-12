@@ -70,9 +70,9 @@ read_intervals <- function(intervals_file) {
     stop("duplicate IDs found in ", intervals_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
   }
 
-  incomplete <- filter(intervals, if_any(everything(), ~ is.na(.x)))
-  if (nrow(incomplete) > 0) {
-    stop("missing values found in ", intervals_file, " for following amplicons: '", str_c(incomplete$ID, collapse = "', '"), "'")
+  missing_values <- filter(intervals, if_any(everything(), is.na))
+  if (nrow(missing_values) > 0) {
+    stop("missing values found in ", intervals_file, " for following amplicons: '", str_c(missing_values$ID, collapse = "', '"), "'")
   }
 
   incorrect_start_and_end <- filter(intervals, Start < 1 | Start > End)
