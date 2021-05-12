@@ -39,6 +39,7 @@ if (str_ends(str_to_lower(input_file), "\\.csv")) {
   blacklisted_variants <- read_tsv(input_file, col_types = cols(.default = col_character()))
 }
 
+# check for expected columns
 expected_columns <- c("Chromosome", "Position", "Ref", "Alt")
 missing_columns <- setdiff(expected_columns, colnames(blacklisted_variants))
 if (length(missing_columns) > 0) {
@@ -47,11 +48,19 @@ if (length(missing_columns) > 0) {
 
 blacklisted_variants <- select(blacklisted_variants, all_of(expected_columns))
 
+# check for missing values in any of the expected columns
 missing_values <- filter(blacklisted_variants, if_any(everything(), is.na))
 if (nrow(missing_values) > 0) {
   stop("missing values found in ", input_file)
 }
 
+# check for multi-allelic variants
+multiallelic_variants <- filter(blacklisted_variants, if_any(Ref:Alt, ~ str_detect(.x, ",")))
+if (nrow(multiallelic_variants) > 0) {
+  stop(input_file, " should not contain multi-allelic variants")
+}
+
+# write specific variants to CSV file
 blacklisted_variants %>%
   distinct() %>%
   write_csv(output_file)
