@@ -256,23 +256,48 @@ process compute_background_noise_thresholds {
         path pileup_counts
 
     output:
-        path position_thresholds
-        path dataset_thresholds
+        path position_noise_thresholds, emit: position_noise_thresholds
+        path library_noise_thresholds, emit: library_noise_thresholds
 
     script:
-        position_thresholds = "position_noise_thresholds.txt"
-        dataset_thresholds = "dataset_noise_thresholds.txt"
+        position_noise_thresholds = "position_noise_thresholds.txt"
+        library_noise_thresholds = "library_noise_thresholds.txt"
         """
         compute_background_noise_thresholds.R \
             --pileup-counts ${pileup_counts} \
-            --position-thresholds ${position_thresholds} \
-            --dataset-thresholds ${dataset_thresholds} \
+            --position-thresholds ${position_noise_thresholds} \
+            --library-thresholds ${library_noise_thresholds} \
             --minimum-depth ${params.minimumDepthForBackgroundNoise} \
             --exclude-highest-fraction ${params.excludeHighestFractionForBackgroundNoise} \
             --maximum-allele-fraction ${params.maximumAlleleFractionForBackgroundNoise} \
             --minimum-number-for-fitting ${params.minimumNumberForFittingBackgroundNoise} \
             --chunk-size ${params.chunkSizeForFittingBackgroundNoise} \
             --read-chunk-size ${params.readChunkSizeForFittingBackgroundNoise}
+        """
+}
+
+
+// Adds background noise thresholds to variants table and applies background
+// noise filters
+process apply_background_noise_filters {
+    executor "local"
+
+    input:
+        path variants
+        path position_noise_thresholds
+        path library_noise_thresholds
+
+    output:
+        path filtered_variants
+
+    script:
+        filtered_variants = "variants_background_noise_filtered.txt"
+        """
+        apply_background_noise_filters.R \
+            --variants ${variants} \
+            --position-thresholds ${position_noise_thresholds} \
+            --library-thresholds ${library_noise_thresholds} \
+            --output ${filtered_variants}
         """
 }
 
@@ -377,7 +402,7 @@ workflow {
         .collectFile(name: "variants.txt", keepHeader: true)
 
     // combine called variants with known/expected variants for specific calling
-    all_variants = add_specific_variants(samples, called_variants, specific_variants)
+    add_specific_variants(samples, called_variants, specific_variants)
 
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -387,11 +412,18 @@ workflow {
         .collectFile(name: "pileup_counts.txt", keepHeader: true)
 
     // add depth and allele fraction from pileup counts to variants
-    variants = add_pileup_allele_fractions(all_variants, collected_pileup_counts)
+    add_pileup_allele_fractions(add_specific_variants.out, collected_pileup_counts)
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
     compute_background_noise_thresholds(collected_pileup_counts)
+
+    // apply background noise filters
+    variants = apply_background_noise_filters(
+        add_pileup_allele_fractions.out,
+        compute_background_noise_thresholds.out.position_noise_thresholds,
+        compute_background_noise_thresholds.out.library_noise_thresholds
+    )
 
     // annotate variants using Ensembl VEP
     variant_effect_predictor(variants, vep_cache_dir)
@@ -439,7 +471,7 @@ def helpMessage() {
 
         Options:
             --help                     Show this message and exit
-            --sampleSheet              CSV/TSV file containing details of sample datasets (ID and Sample columns required)
+            --sampleSheet              CSV/TSV file containing details of samples and libraries (ID and Sample columns required)
             --bamDir                   Directory in which BAM files are located
             --ampliconDetails          CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)
             --specificVariants         CSV/TSV file containing specific (or known) variants that are included in the summary regardless of whether these are called or not (Sample, Chromosome, Position, Ref, Alt columns required)
