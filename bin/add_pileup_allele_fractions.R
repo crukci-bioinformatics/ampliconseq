@@ -38,15 +38,16 @@ if (is.null(output_file)) stop("Output VCF file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
-variants <- read_tsv(variants_file)
+variants <- read_tsv(variants_file, col_types = cols(.default = "c"))
 
-pileup_counts <- read_tsv(pileup_counts_file)
+pileup_counts <- read_tsv(pileup_counts_file, col_types = cols(.default = "c"))
 
 pileup_counts <- pileup_counts %>%
   semi_join(variants, by = c("ID", "Amplicon", "Chromosome", "Position")) %>%
   select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, `A count`:`T count`, Depth) %>%
   pivot_longer(`A count`:`T count`, names_to = "Alt", values_to = "Count") %>%
   mutate(Alt = str_remove(Alt, " count$")) %>%
+  mutate(across(c(Count, Depth), parse_integer)) %>%
   mutate(`Allele fraction` = Count / Depth) %>%
   transmute(ID, Amplicon, Chromosome, Position, Ref, Alt, `Depth (pileup)` = Depth, `Allele fraction (pileup)` = Count / Depth)
 
