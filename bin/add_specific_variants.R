@@ -30,7 +30,7 @@ option_list <- list(
               help = "Specific/known variants file (Sample, Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--output"), dest = "output_file",
-              help = "Output specific variants file in the format required for subsequent pipeline processes")
+              help = "Output file containing all variants including rows for missing calls")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
