@@ -15,8 +15,8 @@ suppressPackageStartupMessages(library(optparse))
 
 option_list <- list(
 
-  make_option(c("--input"), dest = "input_files",
-              help = "Comma-separated list of CSV/TSV files containing variants (Chromosome, Position, Ref and Alt columns required)"),
+  make_option(c("--input"), dest = "input_file",
+              help = "CSV/TSV file containing variants (Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--output"), dest = "output_file",
               help = "Output VCF file containing an entry for each distinct variant")
@@ -25,43 +25,36 @@ option_list <- list(
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
 opt <- parse_args(option_parser)
 
-input_files <- opt$input_files
+input_file <- opt$input_file
 output_file <- opt$output_file
 
-if (is.null(input_files)) stop("Input variant file(s) must be specified")
+if (is.null(input_file)) stop("Input variant file must be specified")
 if (is.null(output_file)) stop("Output VCF file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
-input_files <- unlist(str_split(input_files, ","))
-concatenated_variants <- NULL
+if (str_ends(str_to_lower(input_file), "\\.csv")) {
+  variants <- read_csv(input_file, col_types = cols(.default = col_character()))
+} else {
+  variants <- read_tsv(input_file, col_types = cols(.default = col_character()))
+}
 
-for (input_file in input_files) {
-  if (str_ends(str_to_lower(input_file), "\\.csv")) {
-    variants <- read_csv(input_file, col_types = cols(.default = col_character()))
-  } else {
-    variants <- read_tsv(input_file, col_types = cols(.default = col_character()))
-  }
+expected_columns <- c("Chromosome", "Position", "Ref", "Alt")
+missing_columns <- setdiff(expected_columns, colnames(variants))
+if (length(missing_columns) > 0) {
+  stop("missing columns found in ", input_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
+}
 
-  expected_columns <- c("Chromosome", "Position", "Ref", "Alt")
-  missing_columns <- setdiff(expected_columns, colnames(variants))
-  if (length(missing_columns) > 0) {
-    stop("missing columns found in ", input_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
-  }
+variants <- select(variants, all_of(expected_columns))
 
-  variants <- select(variants, all_of(expected_columns))
-
-  missing_values <- filter(variants, if_any(everything(), is.na))
-  if (nrow(missing_values) > 0) {
-    stop("missing values found in ", input_file)
-  }
-
-  concatenated_variants <- bind_rows(concatenated_variants, variants)
+missing_values <- filter(variants, if_any(everything(), is.na))
+if (nrow(missing_values) > 0) {
+  stop("missing values found in ", input_file)
 }
 
 # note that dplyr distinct function retains the same ordering for the subset of
 # rows
-distinct_variants <- distinct(concatenated_variants)
+distinct_variants <- distinct(variants)
 
 write_lines("##fileformat=VCFv4.2", output_file)
 
