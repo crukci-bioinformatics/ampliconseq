@@ -9,6 +9,7 @@ check_sample_sheet.R \
 check_specific_variants.R \
     --input !{specific_variants} \
     --samples !{checked_sample_sheet} \
+    --amplicons !{amplicons} \
     --output !{checked_specific_variants}
 
 check_blacklisted_variants.R \
