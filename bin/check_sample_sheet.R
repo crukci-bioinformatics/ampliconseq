@@ -69,5 +69,5 @@ if (length(duplicates) > 0) {
 # write new samples file containing only the expected columns
 samples %>%
   select(all_of(expected_columns)) %>%
-  write_csv(output_file)
+  write_tsv(output_file)
 
