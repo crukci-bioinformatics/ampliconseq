@@ -32,29 +32,6 @@ def javaMemMB(task)
 // processes
 // -----------------------------------------------------------------------------
 
-// check input files are valid and create validated versions in CSV format
-// (inputs can be either TSV or CSV) for use in subsequent processes
-process check_inputs {
-    executor "local"
-
-    input:
-        path sample_sheet
-        path specific_variants
-        path blacklisted_variants
-
-    output:
-        path checked_sample_sheet, emit: samples
-        path checked_specific_variants, emit: specific_variants
-        path checked_blacklisted_variants, emit: blacklisted_variants
-
-    shell:
-        checked_sample_sheet = "samples.checked.csv"
-        checked_specific_variants = "specific_variants.checked.csv"
-        checked_blacklisted_variants = "blacklisted_variants.checked.csv"
-        template "check_inputs.sh"
-}
-
-
 // create non-overlapping amplicon groups where none of the amplicons overlap
 // with another amplicon from the same group
 process create_non_overlapping_amplicon_groups {
@@ -75,6 +52,30 @@ process create_non_overlapping_amplicon_groups {
             --reference-sequence-index ${reference_sequence_index} \
             --output ${amplicon_groups}
         """
+}
+
+
+// check input files are valid and create validated versions in CSV format
+// (inputs can be either TSV or CSV) for use in subsequent processes
+process check_inputs {
+    executor "local"
+
+    input:
+        path sample_sheet
+        path specific_variants
+        path blacklisted_variants
+        path amplicons
+
+    output:
+        path checked_sample_sheet, emit: samples
+        path checked_specific_variants, emit: specific_variants
+        path checked_blacklisted_variants, emit: blacklisted_variants
+
+    shell:
+        checked_sample_sheet = "samples.checked.txt"
+        checked_specific_variants = "specific_variants.checked.txt"
+        checked_blacklisted_variants = "blacklisted_variants.checked.txt"
+        template "check_inputs.sh"
 }
 
 
@@ -283,22 +284,22 @@ workflow {
 
     vep_cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
 
-    // check sample sheet
-    check_inputs(sample_sheet, specific_variants, blacklisted_variants)
-
-    samples = check_inputs.out.samples
-    specific_variants = check_inputs.out.specific_variants
-    blacklisted_variants = check_inputs.out.blacklisted_variants
-
     // create groups of non-overlapping amplicons
     amplicon_groups = create_non_overlapping_amplicon_groups(
         amplicon_details,
         reference_sequence_index
     )
 
+    // check sample sheet
+    check_inputs(sample_sheet, specific_variants, blacklisted_variants, amplicon_groups)
+
+    samples = check_inputs.out.samples
+    specific_variants = check_inputs.out.specific_variants
+    blacklisted_variants = check_inputs.out.blacklisted_variants
+
     // BAM file channel created by reading the validated sample sheet
     bam = samples
-        .splitCsv(header: true, quote: '"')
+        .splitCsv(header: true, sep: "\t")
         .map { row -> tuple("${row.ID}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
 
     // Picard alignment summary metrics
