@@ -68,7 +68,7 @@ if (nrow(duplicates) > 0) {
   stop("duplicate IDs found in ", amplicons_file, ": '", str_c(duplicates$ID, collapse = "', '"), "'")
 }
 
-missing_values <- filter(amplicons, if_any(Chromosome:TargetEnd, ~ is.na(.x)))
+missing_values <- filter(amplicons, if_any(Chromosome:TargetEnd, is.na))
 if (nrow(missing_values) > 0) {
   stop("amplicons with missing values found in ", amplicons_file, ": '", str_c(missing_values$ID, collapse = "', '"), "'")
 }
@@ -84,7 +84,7 @@ if (nrow(duplicates) > 0) {
 
 # convert coordinates to integer values
 amplicons <- mutate(amplicons, across(AmpliconStart:TargetEnd, parse_integer))
-missing_values <- filter(amplicons, if_any(AmpliconStart:TargetEnd, ~ is.na(.x)))
+missing_values <- filter(amplicons, if_any(AmpliconStart:TargetEnd, is.na))
 if (nrow(missing_values) > 0) {
   stop("amplicons with non-integer coordinates found in ", amplicons_file, ": '", str_c(missing_values$ID, collapse = "', '"), "'")
 }
