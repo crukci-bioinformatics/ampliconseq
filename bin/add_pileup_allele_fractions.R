@@ -20,7 +20,7 @@ option_list <- list(
 
   make_option(c("--pileup-counts"), dest = "pileup_counts_file",
               help = "TSV file containing pileup counts (ID, Amplicon, Chromosome, Position, 'Reference base', Depth, 'A count', 'C count', 'G count' and 'T count' columns required)"),
- 
+
   make_option(c("--output"), dest = "output_file",
               help = "Output variants file including additional columns for depth and allele fraction computed from the pileup counts")
 )
