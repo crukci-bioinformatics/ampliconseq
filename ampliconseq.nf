@@ -79,74 +79,6 @@ process check_inputs {
 }
 
 
-// extract reads that correspond to groups of amplicon to create
-// subset BAM files
-process extract_amplicon_regions {
-    tag "${id}"
-
-    memory { 2.GB * task.attempt }
-    time { 1.hour * task.attempt }
-    maxRetries 2
-
-    input:
-        tuple val(id), path(bam), path(amplicon_groups)
-
-    output:
-        tuple val(id), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
-        path amplicon_coverage, emit: coverage
-
-    shell:
-        java_mem = javaMemMB(task)
-        amplicon_coverage = "${id}.amplicon_coverage.txt"
-        template "extract_amplicon_regions.sh"
-}
-
-
-// generate allele counts for each position within each amplicon
-process pileup_counts {
-    tag "${id}"
-
-    memory { 4.GB * task.attempt }
-    time { 1.hour * task.attempt }
-    maxRetries 2
-
-    input:
-        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
-
-    output:
-        path pileup
-
-    shell:
-        java_mem = javaMemMB(task)
-        pileup = "${id}.pileup.txt"
-        template "pileup_counts.sh"
-}
-
-
-// call variants
-process call_variants {
-    tag "${id}"
-    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
-
-    memory { 4.GB * task.attempt }
-    time { 1.hour * task.attempt }
-    maxRetries 2
-
-    input:
-        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
-
-    output:
-        path vcf, emit: vcf
-        path variants, emit: variants
-
-    shell:
-        java_mem = javaMemMB(task)
-        vcf = "${id}.vcf"
-        variants = "${id}.variants.txt"
-        template "vardict.sh"
-}
-
-
 // Picard metrics
 process picard_metrics {
     tag "${id}"
@@ -167,6 +99,29 @@ process picard_metrics {
         alignment_metrics = "${id}.alignment_metrics.txt"
         targeted_pcr_metrics = "${id}.targeted_pcr_metrics.txt"
         template "picard_metrics.sh"
+}
+
+
+// extract reads that correspond to groups of amplicon to create
+// subset BAM files
+process extract_amplicon_regions {
+    tag "${id}"
+
+    memory { 2.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), path(bam), path(amplicon_groups)
+
+    output:
+        tuple val(id), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
+        path amplicon_coverage, emit: coverage
+
+    shell:
+        java_mem = javaMemMB(task)
+        amplicon_coverage = "${id}.amplicon_coverage.txt"
+        template "extract_amplicon_regions.sh"
 }
 
 
@@ -200,6 +155,76 @@ process alignment_coverage_report {
 }
 
 
+// call variants
+process call_variants {
+    tag "${id}"
+    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
+
+    memory { 4.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path vcf, emit: vcf
+        path variants, emit: variants
+
+    shell:
+        java_mem = javaMemMB(task)
+        vcf = "${id}.vcf"
+        variants = "${id}.variants.txt"
+        template "vardict.sh"
+}
+
+
+// expand variant table to include specific variants and missing calls within
+// sample replicates
+process add_specific_variants {
+    executor "local"
+
+    input:
+        path samples
+        path called_variants
+        path specific_variants
+
+    output:
+        path all_variants
+
+    script:
+        all_variants = "all_variants.txt"
+        """
+        add_specific_variants.R \
+            --samples ${samples} \
+            --called-variants ${called_variants} \
+            --specific-variants ${specific_variants} \
+            --output ${all_variants}
+        """
+}
+
+
+// generate allele counts for each position within each amplicon
+process pileup_counts {
+    tag "${id}"
+
+    memory { 4.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path pileup
+
+    shell:
+        java_mem = javaMemMB(task)
+        pileup = "${id}.pileup.txt"
+        template "pileup_counts.sh"
+}
+
+
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
@@ -226,31 +251,6 @@ process compute_background_noise_thresholds {
             --minimum-number-for-fitting ${params.minimumNumberForFittingBackgroundNoise} \
             --chunk-size ${params.chunkSizeForFittingBackgroundNoise} \
             --read-chunk-size ${params.readChunkSizeForFittingBackgroundNoise}
-        """
-}
-
-
-// expand variant table to include specific variants and missing calls within
-// sample replicates
-process add_specific_variants {
-    executor "local"
-
-    input:
-        path samples
-        path called_variants
-        path specific_variants
-
-    output:
-        path all_variants
-
-    script:
-        all_variants = "all_variants.txt"
-        """
-        add_specific_variants.R \
-            --samples ${samples} \
-            --called-variants ${called_variants} \
-            --specific-variants ${specific_variants} \
-            --output ${all_variants}
         """
 }
 
