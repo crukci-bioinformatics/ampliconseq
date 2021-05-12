@@ -78,6 +78,6 @@ sample_variants %>%
   left_join(samples, by = "Sample") %>%
   left_join(variants, by = c("ID", "Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
   select(Sample, ID, Amplicon, Chromosome, Position, Ref, Alt, everything()) %>%
-  mutate(Filters = replace_na(Filters, "Not called")) %>%
+  mutate(Filters = replace_na(Filters, "not_called")) %>%
   write_tsv(output_file, na = "")
   
