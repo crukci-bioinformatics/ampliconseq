@@ -53,9 +53,9 @@ library_thresholds <- read_tsv(library_thresholds_file, col_types = cols(`Allele
 
 variants <- variants %>%
   left_join(position_thresholds, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
-  mutate(Filters = ifelse(!is.na(`Allele fraction (pileup)`) & !is.na(`Position noise threshold`) & `Allele fraction (pileup)` > `Position noise threshold`, str_c(Filters, "position_noise", sep = ","), Filters)) %>%
+  mutate(Filters = ifelse(!is.na(`Allele fraction (pileup)`) & !is.na(`Position noise threshold`) & `Allele fraction (pileup)` < `Position noise threshold`, str_c(Filters, "position_noise", sep = ","), Filters)) %>%
   left_join(library_thresholds, by = c("ID", "Ref", "Alt")) %>%
-  mutate(Filters = ifelse(!is.na(`Allele fraction (pileup)`) & !is.na(`Library noise threshold`) & `Allele fraction (pileup)` > `Library noise threshold`, str_c(Filters, "library_noise", sep = ","), Filters)) %>%
+  mutate(Filters = ifelse(!is.na(`Allele fraction (pileup)`) & !is.na(`Library noise threshold`) & `Allele fraction (pileup)` < `Library noise threshold`, str_c(Filters, "library_noise", sep = ","), Filters)) %>%
   mutate(Filters = str_remove(Filters, "^PASS,"))
 
 write_tsv(variants, output_file, na = "")
