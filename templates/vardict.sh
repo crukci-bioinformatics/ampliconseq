@@ -19,7 +19,7 @@ do
         > vardict.teststrandbias.${group}.txt
 
     cat vardict.teststrandbias.${group}.txt \
-        | var2vcf_valid.pl -N "!{id}" -E -f !{params.minimumAlleleFraction} \
+        | var2vcf_valid.pl -N "!{id}" -E -P 0 -f !{params.minimumAlleleFraction} \
         > vardict.${group}.vcf
 
     JAVA_OPTS="-Xmx!{java_mem}m" annotate-vcf-with-amplicon-ids \
