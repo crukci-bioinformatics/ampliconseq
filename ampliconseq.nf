@@ -279,7 +279,7 @@ process compute_background_noise_thresholds {
 }
 
 
-// Adds background noise thresholds to variants table and applies background
+// add background noise thresholds to variants table and applies background
 // noise filters
 process apply_background_noise_filters {
     executor "local"
@@ -299,6 +299,28 @@ process apply_background_noise_filters {
             --variants ${variants} \
             --position-thresholds ${position_noise_thresholds} \
             --library-thresholds ${library_noise_thresholds} \
+            --output ${filtered_variants}
+        """
+}
+
+
+// apply filter for blacklisted variants
+process apply_blacklist_filter {
+    executor "local"
+
+    input:
+        path variants
+        path blacklisted_variants
+
+    output:
+        path filtered_variants
+
+    script:
+        filtered_variants = "variants_blacklist_filtered.txt"
+        """
+        apply_blacklist_filter.R \
+            --variants ${variants} \
+            --blacklist ${blacklisted_variants} \
             --output ${filtered_variants}
         """
 }
@@ -422,11 +444,14 @@ workflow {
     compute_background_noise_thresholds(collected_pileup_counts)
 
     // apply background noise filters
-    variants = apply_background_noise_filters(
+    apply_background_noise_filters(
         add_pileup_allele_fractions.out,
         compute_background_noise_thresholds.out.position_noise_thresholds,
         compute_background_noise_thresholds.out.library_noise_thresholds
     )
+
+    // apply filter for blacklisted variants
+    variants = apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
 
     // annotate variants using Ensembl VEP
     variant_effect_predictor(variants, reference_sequence_index, vep_cache_dir)
