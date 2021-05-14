@@ -232,7 +232,7 @@ yield_plot <-
   guides(fill = guide_legend(keywidth = 1, keyheight = 0.25, reverse = TRUE))
 
 yield_plot_file <- tempfile(pattern = "aligned_yield_", fileext = ".svg")
-ggsave(yield_plot_file, plot = yield_plot, width = 7, height = max(nrow(merged_metrics) / 10.0, 5.0))
+ggsave(yield_plot_file, plot = yield_plot, width = 7, height = max(nrow(merged_metrics) / 10.0, 5.0), limitsize = FALSE)
 
 # target coverage plot
 mean_target_coverage_plot <-
@@ -303,7 +303,7 @@ amplicon_coverage_plot <-
 
 amplicon_coverage_plot_file <- tempfile(pattern = "amplicon_coverage_", fileext = ".svg")
 number_of_amplicons <- amplicon_coverage_plot_data %>% distinct(Amplicon) %>% nrow()
-ggsave(amplicon_coverage_plot_file, plot = amplicon_coverage_plot, width = 7, height = max(number_of_amplicons / 10.0, 5.0))
+ggsave(amplicon_coverage_plot_file, plot = amplicon_coverage_plot, width = 7, height = max(number_of_amplicons / 10.0, 5.0), limitsize = FALSE)
 
 # Nozzle report
 report <- newCustomReport("Amplicon Sequencing Alignment and Target Coverage Report")
