@@ -360,6 +360,35 @@ process annotate_variants {
 }
 
 
+// gather variant calls/details for replicate libraries into a single row and
+// add VEP and additional annotations
+process summarize_variants {
+    executor "local"
+    publishDir "${params.outputDir}", mode: "copy"
+
+    input:
+        path variants
+        path vep_annotations
+        path other_annotations
+
+    output:
+        path variant_summary_csv
+        path variant_summary_tsv
+
+    script:
+        output_prefix = "variants"
+        variant_summary_csv = "${output_prefix}.csv"
+        variant_summary_tsv = "${output_prefix}.txt"
+        """
+        summarize_variants.R \
+            --variants ${variants} \
+            --vep-annotations ${vep_annotations} \
+            --other-annotations ${other_annotations} \
+            --output-prefix ${output_prefix}
+        """
+}
+
+
 // -----------------------------------------------------------------------------
 // workflow
 // -----------------------------------------------------------------------------
@@ -458,6 +487,9 @@ workflow {
 
     // additional annotations (sequence context, indel length, etc.)
     annotate_variants(variants.combine(reference_sequence))
+
+    // create variant summary
+    summarize_variants(variants, variant_effect_predictor.out, annotate_variants.out)
 }
 
 
@@ -533,3 +565,4 @@ def helpMessage() {
     """.stripIndent()
     log.info ""
 }
+
