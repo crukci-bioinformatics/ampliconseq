@@ -231,7 +231,7 @@ yield_plot <-
   ) +
   guides(fill = guide_legend(keywidth = 1, keyheight = 0.25, reverse = TRUE))
 
-yield_plot_file <- tempfile(pattern = "aligned_yield_", fileext = ".svg")
+yield_plot_file <- "aligned_yield.svg"
 ggsave(yield_plot_file, plot = yield_plot, width = 7, height = max(nrow(merged_metrics) / 10.0, 5.0), limitsize = FALSE)
 
 # target coverage plot
@@ -252,7 +252,7 @@ mean_target_coverage_plot <-
   scale_x_continuous(expand = c(0, 1)) +
   scale_y_continuous(expand = c(0, 0), limit = c(0, max(merged_metrics$MEAN_TARGET_COVERAGE * 1.1)))
 
-mean_target_coverage_plot_file <- tempfile(pattern = "mean_target_coverage_", fileext = ".svg")
+mean_target_coverage_plot_file <- "mean_target_coverage.svg"
 ggsave(mean_target_coverage_plot_file, plot = mean_target_coverage_plot, width = 7, height = 6)
 
 # usable bases off-amplicon plot
@@ -273,7 +273,7 @@ usable_bases_off_amplicon_plot <-
   scale_x_continuous(expand = c(0, 1)) +
   scale_y_continuous(expand = c(0, 0), limit = c(0, min(c(100, max(merged_metrics$PCT_OFF_AMPLICON) * 1.1))))
 
-usable_bases_off_amplicon_plot_file <- tempfile(pattern = "usable_bases_off_amplicon_", fileext = ".svg")
+usable_bases_off_amplicon_plot_file <- "usable_bases_off_amplicon.svg"
 ggsave(usable_bases_off_amplicon_plot_file, plot = usable_bases_off_amplicon_plot, width = 7, height = 6)
 
 # amplicon coverage box plots
@@ -301,7 +301,7 @@ amplicon_coverage_plot <-
   ) +
   scale_y_log10(expand = c(0.01, 0), breaks = c(10, 100, 1000, 10000), limits = c(1, max(amplicon_coverage_plot_data$`Mean coverage`)))
 
-amplicon_coverage_plot_file <- tempfile(pattern = "amplicon_coverage_", fileext = ".svg")
+amplicon_coverage_plot_file <- "amplicon_coverage.svg"
 number_of_amplicons <- amplicon_coverage_plot_data %>% distinct(Amplicon) %>% nrow()
 ggsave(amplicon_coverage_plot_file, plot = amplicon_coverage_plot, width = 7, height = max(number_of_amplicons / 10.0, 5.0), limitsize = FALSE)
 
@@ -354,13 +354,7 @@ report <- addTo(report, alignment_metrics_section)
 report <- addTo(report, yield_section)
 report <- addTo(report, target_coverage_section)
 
-temp_report_file <- tempfile(pattern = "report_", fileext = "")
+temp_report_file <- tempfile(pattern = "report_", tmpdir = getwd(), fileext = "")
 writeReport(report, filename = temp_report_file, output = HTML.REPORT)
-file.copy(str_c(temp_report_file, ".html"), output_report_file)
-
-file.remove(yield_plot_file)
-file.remove(mean_target_coverage_plot_file)
-file.remove(usable_bases_off_amplicon_plot_file)
-file.remove(amplicon_coverage_plot_file)
-file.remove(temp_report_file)
+file.rename(str_c(temp_report_file, ".html"), output_report_file)
 
