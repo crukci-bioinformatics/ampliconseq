@@ -19,10 +19,10 @@ option_list <- list(
               help = "TSV file containing variants (ID, Amplicon, Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--position-thresholds"), dest = "position_thresholds_file",
-              help = "TSV file containing position noise thresholds (Amplicon, Chromosome, Position, 'Reference base', 'Alternate allele' and 'Allele fraction threshold' columns required)"),
+              help = "TSV file containing position noise thresholds (Amplicon, Chromosome, Position, Ref, Alt and 'Allele fraction threshold' columns required)"),
 
   make_option(c("--library-thresholds"), dest = "library_thresholds_file",
-              help = "TSV file containing position noise thresholds (ID, 'Reference base', 'Alternate allele' and 'Allele fraction threshold' columns required)"),
+              help = "TSV file containing position noise thresholds (ID, Ref, Alt and 'Allele fraction threshold' columns required)"),
 
   make_option(c("--output"), dest = "output_file",
               help = "Output variants file")
@@ -46,10 +46,10 @@ suppressPackageStartupMessages(library(tidyverse))
 variants <- read_tsv(variants_file, col_types = cols(`Allele fraction (pileup)` = "d", .default = "c"))
 
 position_thresholds <- read_tsv(position_thresholds_file, col_types = cols(`Allele fraction threshold` = "d", .default = "c")) %>%
-  rename(Ref = `Reference base`, Alt = `Alternate allele`, `Position noise threshold` = `Allele fraction threshold`)
+  rename(`Position noise threshold` = `Allele fraction threshold`)
 
 library_thresholds <- read_tsv(library_thresholds_file, col_types = cols(`Allele fraction threshold` = "d", .default = "c")) %>%
-  rename(Ref = `Reference base`, Alt = `Alternate allele`, `Library noise threshold` = `Allele fraction threshold`)
+  rename(`Library noise threshold` = `Allele fraction threshold`)
 
 variants <- variants %>%
   left_join(position_thresholds, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
