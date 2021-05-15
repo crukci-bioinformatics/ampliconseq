@@ -454,9 +454,6 @@ workflow {
     called_variants = call_variants.out.variants
         .collectFile(name: "variants.txt", keepHeader: true)
 
-    // combine called variants with known/expected variants for specific calling
-    add_specific_variants(samples, called_variants, specific_variants, reference_sequence_index)
-
     // generate pileup counts
     pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
 
@@ -464,8 +461,17 @@ workflow {
     collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup_counts.txt", keepHeader: true)
 
+    // combine called variants with known/expected variants for specific calling
+    add_specific_variants(samples, called_variants, specific_variants, reference_sequence_index)
+
     // add depth and allele fraction from pileup counts to variants
     add_pileup_allele_fractions(add_specific_variants.out, collected_pileup_counts)
+
+    // annotate variants using Ensembl VEP
+    variant_effect_predictor(add_specific_variants.out, reference_sequence_index, vep_cache_dir)
+
+    // additional annotations (sequence context, indel length, etc.)
+    annotate_variants(add_specific_variants.out.combine(reference_sequence))
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
@@ -479,16 +485,10 @@ workflow {
     )
 
     // apply filter for blacklisted variants
-    variants = apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
-
-    // annotate variants using Ensembl VEP
-    variant_effect_predictor(variants, reference_sequence_index, vep_cache_dir)
-
-    // additional annotations (sequence context, indel length, etc.)
-    annotate_variants(variants.combine(reference_sequence))
+    apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
 
     // create variant summary
-    summarize_variants(variants, variant_effect_predictor.out, annotate_variants.out)
+    summarize_variants(apply_blacklist_filter.out, variant_effect_predictor.out, annotate_variants.out)
 }
 
 
