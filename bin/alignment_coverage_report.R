@@ -172,9 +172,7 @@ if (str_ends(str_to_lower(output_metrics_file), "\\.csv")) {
 }
 
 # correct percentages
-merged_metrics <- merged_metrics %>%
-  mutate_at(vars(matches("^PCT_")), ~ . * 100) %>%
-  mutate_at(vars(matches("_RATE$")), ~ . * 100)
+merged_metrics <- mutate(merged_metrics, across(c(starts_with("PCT_"), ends_with("_RATE")), ~ . * 100))
 
 # create labels from ID and SAMPLE fields
 merged_metrics <- merged_metrics %>%
