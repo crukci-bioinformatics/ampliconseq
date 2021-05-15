@@ -58,15 +58,15 @@ variants <- variants %>%
   rename(Chromosome = `#CHROM`, Position = POS, id = ID, Ref = REF, Alt = ALT, quality = QUAL, filter = FILTER, info = INFO)
 
 vep_annotations <- variants %>%
-  transmute(row_number = row_number(), Chromosome, Position, Ref, Alt, value = info) %>%
+  transmute(variant_number = row_number(), Chromosome, Position, Ref, Alt, value = info) %>%
   mutate(value = str_remove(value, "^CSQ=")) %>%
   separate_rows(value, sep = "\\|") %>%
-  group_by(row_number) %>%
+  group_by(variant_number) %>%
   mutate(index = row_number()) %>%
   ungroup() %>%
   left_join(vep_annotation_types, by = "index") %>%
   select(-index) %>%
-  spread(key = "name", value = "value") %>%
+  pivot_wider(names_from = "name", values_from = "value") %>%
   select(
     Chromosome, Position, Ref, Alt,
     `Variant type` = VARIANT_CLASS,
