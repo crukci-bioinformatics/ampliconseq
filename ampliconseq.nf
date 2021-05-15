@@ -252,10 +252,9 @@ process add_pileup_allele_fractions {
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
-    publishDir "${params.outputDir}", mode: "copy"
-
     input:
         path pileup_counts
+        path variants
 
     output:
         path position_noise_thresholds, emit: position_noise_thresholds
@@ -267,6 +266,7 @@ process compute_background_noise_thresholds {
         """
         compute_background_noise_thresholds.R \
             --pileup-counts ${pileup_counts} \
+            --variants ${variants} \
             --position-thresholds ${position_noise_thresholds} \
             --library-thresholds ${library_noise_thresholds} \
             --minimum-depth ${params.minimumDepthForBackgroundNoise} \
@@ -328,7 +328,6 @@ process apply_blacklist_filter {
 
 // annotate variants using Ensembl VEP
 process variant_effect_predictor {
-
     input:
         path variants
         path reference_sequence_index
@@ -470,7 +469,7 @@ workflow {
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
-    compute_background_noise_thresholds(collected_pileup_counts)
+    compute_background_noise_thresholds(collected_pileup_counts, add_specific_variants.out)
 
     // apply background noise filters
     apply_background_noise_filters(
