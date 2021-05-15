@@ -24,6 +24,9 @@ option_list <- list(
   make_option(c("--pileup-counts"), dest = "pileup_counts_file",
               help = "Pileup counts file with read counts for each allele at every amplicon position"),
 
+  make_option(c("--variants"), dest = "variants_file",
+              help = "File containing variants used to restrict positions at which to compute background noise (Amplicon, Chromosome, Position, Ref and Alt columns required)"),
+
   make_option(c("--position-thresholds"), dest = "position_thresholds_file",
               help = "Output thresholds file for background noise for each substitution at each amplicon position"),
 
@@ -53,6 +56,7 @@ option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = op
 opt <- parse_args(option_parser)
 
 pileup_counts_file <- opt$pileup_counts_file
+variants_file <- opt$variants_file
 position_thresholds_file <- opt$position_thresholds_file
 library_thresholds_file <- opt$library_thresholds_file
 minimum_depth <- opt$minimum_depth
@@ -147,7 +151,7 @@ amplicon_position_row_counts <- tibble(
 
 library_reference_base_row_counts <- tibble(
   ID = character(),
-  `Reference base` = character(),
+  Ref = character(),
   n = integer()
 )
 
@@ -156,15 +160,17 @@ library_reference_base_row_counts <- tibble(
 collect_row_counts <- function(data, pos) {
   total <<- total + nrow(data)
 
+  data <- rename(data, Ref = `Reference base`)
+
   amplicon_position_row_counts <<- data %>%
     count(Amplicon, Chromosome, Position) %>%
     bind_rows(amplicon_position_row_counts) %>%
     count(Amplicon, Chromosome, Position, wt = n)
 
   library_reference_base_row_counts <<- data %>%
-    count(ID, `Reference base`) %>%
+    count(ID, Ref) %>%
     bind_rows(library_reference_base_row_counts) %>%
-    count(ID, `Reference base`, wt = n)
+    count(ID, Ref, wt = n)
 }
 
 result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_row_counts), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
@@ -181,9 +187,6 @@ message("Distinct target positions: ", number_of_positions)
 compute_position_thresholds <- nrow(amplicon_position_row_counts) > 0 && max(amplicon_position_row_counts$n) >= minimum_number_for_fitting
 compute_library_thresholds <- nrow(library_reference_base_row_counts) > 0 && max(library_reference_base_row_counts$n) >= minimum_number_for_fitting
 
-number_of_chunks <- ceiling(total / chunk_size)
-message("Number of chunks: ", number_of_chunks)
-
 chunk_file_prefix <- tempfile("pileup_counts.", getwd())
 
 
@@ -191,6 +194,7 @@ chunk_file_prefix <- tempfile("pileup_counts.", getwd())
 # ----------------------------------------
 
 create_position_chunk_files <- function(data, pos) {
+  data <- rename(data, Ref = `Reference base`)
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
     chunk_data <- filter(amplicon_position_row_counts, Chunk == chunk)
@@ -204,10 +208,40 @@ if (compute_position_thresholds) {
 
   message(as.character(Sys.time()), "  Creating position chunk files")
 
-  chunk_size <- ceiling(nrow(amplicon_position_row_counts) / number_of_chunks)
+  # restrict positions to those for the variants if provided
+  variants <- NULL
 
+  if (!is.null(variants_file)) {
+    variants <- read_tsv(variants_file, col_types = cols(.default = "c"))
+
+    # check for expected columns
+    expected_columns <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt")
+    missing_columns <- setdiff(expected_columns, colnames(variants))
+    if (length(missing_columns) > 0) {
+      stop("missing columns found in ", variants_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
+    }
+
+    variants <- variants %>%
+      filter(nchar(Ref) == 1, nchar(Alt) == 1) %>%
+      select(all_of(expected_columns)) %>%
+      distinct() %>%
+      mutate(Position = parse_integer(Position))
+
+    positions <- distinct(variants, Amplicon, Chromosome, Position)
+
+    amplicon_position_row_counts <- semi_join(amplicon_position_row_counts, positions, by = c("Amplicon", "Chromosome", "Position"))
+
+    number_of_positions <- nrow(amplicon_position_row_counts)
+    message("Distinct target positions (variants only): ", number_of_positions)
+  }
+
+  number_of_chunks <- ceiling(sum(amplicon_position_row_counts$n) / chunk_size)
+  number_of_rows_per_chunk <- ceiling(nrow(amplicon_position_row_counts) / number_of_chunks)
   amplicon_position_row_counts <- amplicon_position_row_counts %>%
-    mutate(Chunk = rep(1:number_of_chunks, each = chunk_size)[1:nrow(amplicon_position_row_counts)])
+    arrange(Amplicon, Chromosome, Position) %>%
+    mutate(Chunk = rep(1:number_of_chunks, each = number_of_rows_per_chunk)[1:nrow(amplicon_position_row_counts)])
+  number_of_chunks <- max(amplicon_position_row_counts$Chunk)
+  message("Number of chunks: ", number_of_chunks)
 
   result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_position_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
 
@@ -221,22 +255,24 @@ if (compute_position_thresholds) {
 
     pileup_counts <- read_tsv(chunk_file, col_types = "cccdcddddddd")
 
-    allele_fractions <- pileup_counts %>%
+    pileup_counts <- pileup_counts %>%
       filter(Depth >= minimum_depth) %>%
-      mutate(
-        A = `A count` / Depth,
-        C = `C count` / Depth,
-        G = `G count` / Depth,
-        T = `T count` / Depth
-      ) %>%
-      select(ID, Amplicon, Chromosome, Position, `Reference base`, A, C, G, T) %>%
-      gather(`Alternate allele`, `Allele fraction`, A, C, G, T) %>%
-      filter(`Reference base` != `Alternate allele`) %>%
-      arrange(ID, Amplicon, Chromosome, Position, `Reference base`, `Alternate allele`, `Allele fraction`)
+      select(ID, Amplicon, Chromosome, Position, Ref, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
+      pivot_longer(c(A, C, G, T), names_to = "Alt", values_to = "Count") %>%
+      filter(Ref != Alt)
+
+    if (!is.null(variants)) {
+      pileup_counts <- semi_join(pileup_counts, variants, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt"))
+    }
+
+    allele_fractions <- pileup_counts %>%
+      mutate(`Allele fraction` = Count / Depth) %>%
+      select(ID, Amplicon, Chromosome, Position, Ref, Alt, `Allele fraction`) %>%
+      arrange(ID, Amplicon, Chromosome, Position, Ref, Alt)
 
     time_summary <- system.time(
       thresholds <- allele_fractions %>%
-        group_by(Amplicon, Chromosome, Position, `Reference base`, `Alternate allele`) %>%
+        group_by(Amplicon, Chromosome, Position, Ref, Alt) %>%
         summarize(
           `Allele fraction threshold` = compute_threshold(
             `Allele fraction`,
@@ -265,8 +301,8 @@ if (compute_position_thresholds) {
       Amplicon = character(),
       Chromosome = character(),
       Position = integer(),
-      `Reference base` = character(),
-      `Alternate allele` = character(),
+      Ref = character(),
+      Alt = character(),
       `Allele fraction threshold` = double()
     ),
     position_thresholds_file
@@ -278,6 +314,7 @@ if (compute_position_thresholds) {
 # ---------------------------------------
 
 create_library_chunk_files <- function(data, pos) {
+  data <- rename(data, Ref = `Reference base`)
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
     chunk_data <- filter(library_row_counts, Chunk == chunk)
@@ -291,10 +328,13 @@ if (compute_library_thresholds) {
 
   message(as.character(Sys.time()), "  Creating library chunk files")
 
-  chunk_size <- ceiling(nrow(library_row_counts) / number_of_chunks)
-
+  number_of_chunks <- ceiling(sum(library_row_counts$n) / chunk_size)
+  number_of_rows_per_chunk <- ceiling(nrow(library_row_counts) / number_of_chunks)
   library_row_counts <- library_row_counts %>%
-    mutate(Chunk = rep(1:number_of_chunks, each = chunk_size)[1:nrow(library_row_counts)])
+    arrange(ID) %>%
+    mutate(Chunk = rep(1:number_of_chunks, each = number_of_rows_per_chunk)[1:nrow(library_row_counts)])
+  number_of_chunks <- max(library_row_counts$Chunk)
+  message("Number of chunks: ", number_of_chunks)
 
   result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_library_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
 
@@ -310,20 +350,16 @@ if (compute_library_thresholds) {
 
     allele_fractions <- pileup_counts %>%
       filter(Depth >= minimum_depth) %>%
-      mutate(
-        A = `A count` / Depth,
-        C = `C count` / Depth,
-        G = `G count` / Depth,
-        T = `T count` / Depth
-      ) %>%
-      select(ID, Amplicon, Chromosome, Position, `Reference base`, A, C, G, T) %>%
-      gather(`Alternate allele`, `Allele fraction`, A, C, G, T) %>%
-      filter(`Reference base` != `Alternate allele`) %>%
-      arrange(ID, Amplicon, Chromosome, Position, `Reference base`, `Alternate allele`, `Allele fraction`)
+      select(ID, Amplicon, Chromosome, Position, Ref, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
+      pivot_longer(c(A, C, G, T), names_to = "Alt", values_to = "Count") %>%
+      filter(Ref != Alt) %>%
+      mutate(`Allele fraction` = Count / Depth) %>%
+      select(ID, Amplicon, Chromosome, Position, Ref, Alt, `Allele fraction`) %>%
+      arrange(ID, Amplicon, Chromosome, Position, Ref, Alt)
 
     time_summary <- system.time(
       thresholds <- allele_fractions %>%
-        group_by(ID, `Reference base`, `Alternate allele`) %>%
+        group_by(ID, Ref, Alt) %>%
         summarize(
           `Allele fraction threshold` = compute_threshold(
             `Allele fraction`,
@@ -350,8 +386,8 @@ if (compute_library_thresholds) {
   write_tsv(
     tibble(
       ID = character(),
-      `Reference base` = character(),
-      `Alternate allele` = character(),
+      Ref = character(),
+      Alt = character(),
       `Allele fraction threshold` = double()
     ),
     library_thresholds_file
