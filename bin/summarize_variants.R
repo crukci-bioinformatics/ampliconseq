@@ -43,10 +43,15 @@ if (is.null(output_prefix)) stop("Prefix for output files must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
-variants <- read_tsv(variants_file, col_types = cols(.default = "c"))
+# read variants
+variants <- read_tsv(variants_file, col_types = cols(
+  `Allele fraction (pileup)` = "d",
+  `Position noise threshold` = "d",
+  `Library noise threshold` = "d",
+  .default = "c"))
 
 # rounding for allele fraction and noise thresholds
-variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position noise threshold`, `Library noise threshold`), ~ round(parse_double(.x), digits = 5)))
+variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position noise threshold`, `Library noise threshold`), ~ round(.x, digits = 5)))
 
 # collapse/condense variants for all replicate libraries for a sample into a
 # single row for each distinct variant
