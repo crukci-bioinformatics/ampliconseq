@@ -252,6 +252,10 @@ process add_pileup_allele_fractions {
 // fit distributions for substitution allele fractions from pileup counts and
 // compute background noise thresholds
 process compute_background_noise_thresholds {
+
+    time { 2.hour * task.attempt }
+    maxRetries 1
+
     input:
         path pileup_counts
         path variants
