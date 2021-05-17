@@ -100,7 +100,7 @@ if (nrow(incorrect_target_coordinates)) {
 }
 
 # read reference genome index file
-chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "ciiii", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
 
 # additional checks based on chromosomes from reference genome
 missing_chromosomes <- anti_join(amplicons, chromosomes, by = "Chromosome")

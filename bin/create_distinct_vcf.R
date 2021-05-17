@@ -65,7 +65,7 @@ if (nrow(missing_values) > 0) {
 }
 
 # read reference genome index file
-chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "ciiii", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
 
 # get unique set of variants in coordinate sorted order
 distinct_variants <- variants %>%
