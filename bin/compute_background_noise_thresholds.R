@@ -212,7 +212,7 @@ if (compute_position_thresholds) {
   variants <- NULL
 
   if (!is.null(variants_file)) {
-    variants <- read_tsv(variants_file, col_types = cols(.default = "c"))
+    variants <- read_tsv(variants_file, col_types = cols(Position = "i", .default = "c"))
 
     # check for expected columns
     expected_columns <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt")
@@ -222,10 +222,9 @@ if (compute_position_thresholds) {
     }
 
     variants <- variants %>%
-      filter(nchar(Ref) == 1, nchar(Alt) == 1) %>%
       select(all_of(expected_columns)) %>%
-      distinct() %>%
-      mutate(Position = parse_integer(Position))
+      filter(nchar(Ref) == 1, nchar(Alt) == 1) %>%
+      distinct()
 
     positions <- distinct(variants, Amplicon, Chromosome, Position)
 
@@ -284,8 +283,8 @@ if (compute_position_thresholds) {
         mutate(`Allele fraction threshold` = sprintf("%.6f", `Allele fraction threshold`))
     )
 
-    message("User time:    ", time_summary[["user.self"]], "s")
-    message("Elapsed time: ", time_summary[["elapsed"]], "s")
+    message("User time:    ", round(time_summary[["user.self"]]), "s")
+    message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
 
     write_tsv(thresholds, position_thresholds_file, append = chunk > 1)
 
@@ -371,8 +370,8 @@ if (compute_library_thresholds) {
         mutate(`Allele fraction threshold` = sprintf("%.6f", `Allele fraction threshold`))
     )
 
-    message("User time:    ", time_summary[["user.self"]], "s")
-    message("Elapsed time: ", time_summary[["elapsed"]], "s")
+    message("User time:    ", round(time_summary[["user.self"]]), "s")
+    message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
 
     write_tsv(thresholds, library_thresholds_file, append = chunk > 1)
 
