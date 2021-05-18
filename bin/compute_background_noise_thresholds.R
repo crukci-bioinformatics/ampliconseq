@@ -151,7 +151,7 @@ amplicon_position_row_counts <- tibble(
 
 library_reference_base_row_counts <- tibble(
   ID = character(),
-  Ref = character(),
+  `Reference base` = character(),
   n = integer()
 )
 
@@ -160,20 +160,20 @@ library_reference_base_row_counts <- tibble(
 collect_row_counts <- function(data, pos) {
   total <<- total + nrow(data)
 
-  data <- rename(data, Ref = `Reference base`)
-
   amplicon_position_row_counts <<- data %>%
     count(Amplicon, Chromosome, Position) %>%
     bind_rows(amplicon_position_row_counts) %>%
     count(Amplicon, Chromosome, Position, wt = n)
 
   library_reference_base_row_counts <<- data %>%
-    count(ID, Ref) %>%
+    count(ID, `Reference base`) %>%
     bind_rows(library_reference_base_row_counts) %>%
-    count(ID, Ref, wt = n)
+    count(ID, `Reference base`, wt = n)
 }
 
-result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_row_counts), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
+pileup_col_types <- cols(ID = "c", Amplicon = "c", Chromosome = "c", Position = "i", `Reference base` = "c", .default = "i")
+
+result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_row_counts), chunk_size = read_chunk_size, col_types = pileup_col_types)
 
 library_row_counts <- count(library_reference_base_row_counts, ID, wt = n)
 
@@ -194,7 +194,6 @@ chunk_file_prefix <- tempfile("pileup_counts.", getwd())
 # ----------------------------------------
 
 create_position_chunk_files <- function(data, pos) {
-  data <- rename(data, Ref = `Reference base`)
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
     chunk_data <- filter(amplicon_position_row_counts, Chunk == chunk)
@@ -242,7 +241,7 @@ if (compute_position_thresholds) {
   number_of_chunks <- max(amplicon_position_row_counts$Chunk)
   message("Number of chunks: ", number_of_chunks)
 
-  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_position_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
+  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_position_chunk_files), chunk_size = read_chunk_size, col_types = pileup_col_types)
 
   message(as.character(Sys.time()), "  Computing position substitution thresholds")
 
@@ -252,11 +251,11 @@ if (compute_position_thresholds) {
 
     chunk_file <- str_c(chunk_file_prefix, ".", chunk)
 
-    pileup_counts <- read_tsv(chunk_file, col_types = "cccdcddddddd")
+    pileup_counts <- read_tsv(chunk_file, col_types = pileup_col_types)
 
     pileup_counts <- pileup_counts %>%
       filter(Depth >= minimum_depth) %>%
-      select(ID, Amplicon, Chromosome, Position, Ref, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
+      select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
       pivot_longer(c(A, C, G, T), names_to = "Alt", values_to = "Count") %>%
       filter(Ref != Alt)
 
@@ -313,7 +312,6 @@ if (compute_position_thresholds) {
 # ---------------------------------------
 
 create_library_chunk_files <- function(data, pos) {
-  data <- rename(data, Ref = `Reference base`)
   for (chunk in 1:number_of_chunks) {
     chunk_file = str_c(chunk_file_prefix, ".", chunk)
     chunk_data <- filter(library_row_counts, Chunk == chunk)
@@ -335,7 +333,7 @@ if (compute_library_thresholds) {
   number_of_chunks <- max(library_row_counts$Chunk)
   message("Number of chunks: ", number_of_chunks)
 
-  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_library_chunk_files), chunk_size = read_chunk_size, col_types = "cccdcddddddd")
+  result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(create_library_chunk_files), chunk_size = read_chunk_size, col_types = pileup_col_types)
 
   message(as.character(Sys.time()), "  Computing library substitution thresholds")
 
@@ -345,11 +343,11 @@ if (compute_library_thresholds) {
 
     chunk_file <- str_c(chunk_file_prefix, ".", chunk)
 
-    pileup_counts <- read_tsv(chunk_file, col_types = "cccdcddddddd")
+    pileup_counts <- read_tsv(chunk_file, col_types = pileup_col_types)
 
     allele_fractions <- pileup_counts %>%
       filter(Depth >= minimum_depth) %>%
-      select(ID, Amplicon, Chromosome, Position, Ref, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
+      select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, Depth, A = `A count`, C = `C count`, G = `G count`, T = `T count`) %>%
       pivot_longer(c(A, C, G, T), names_to = "Alt", values_to = "Count") %>%
       filter(Ref != Alt) %>%
       mutate(`Allele fraction` = Count / Depth) %>%
