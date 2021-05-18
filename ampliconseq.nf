@@ -389,7 +389,8 @@ process summarize_variants {
             --vep-annotations ${vep_annotations} \
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
-            --output-prefix ${output_prefix}
+            --output-prefix ${output_prefix} \
+            --minimum-depth ${params.minimumDepthForHighConfidenceCalls}
         """
 }
 

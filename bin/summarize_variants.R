@@ -28,7 +28,10 @@ option_list <- list(
               help = "Index file for the reference genome sequence used for chromosome sort order (expected to have .fai extension)"),
 
   make_option(c("--output-prefix"), dest = "output_prefix",
-              help = "Prefix for output variant summary files in CSV and TSV format")
+              help = "Prefix for output variant summary files in CSV and TSV format"),
+
+  make_option(c("--minimum-depth"), dest = "minimum_depth", type = "integer", default = 100,
+              help = "Minimum depth for high-confidence variant calls (default: %default)")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -39,12 +42,17 @@ vep_file <- opt$vep_file
 annotation_file <- opt$annotation_file
 reference_sequence_index_file <- opt$reference_sequence_index_file
 output_prefix <- opt$output_prefix
+minimum_depth <- opt$minimum_depth
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(output_prefix)) stop("Prefix for output files must be specified")
+
+if (!is.integer(minimum_depth) || minimum_depth <= 0) {
+  stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
+}
 
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -62,7 +70,7 @@ variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position nois
 # called and passes filters and for which there was sufficient depth of coverage
 # TODO add minimum depth option
 confidence <- variants %>%
-  mutate(Confident = Filters == "PASS" & Depth >= 100) %>%
+  mutate(Confident = Filters == "PASS" & Depth >= minimum_depth) %>%
   group_by(Sample, Amplicon, Chromosome, Position, Ref, Alt) %>%
   summarize(ConfidentCount = sum(Confident), ReplicateCount = n(), .groups = "drop") %>%
   mutate(Confidence = ifelse(ConfidentCount == 0, "low", "medium")) %>%
