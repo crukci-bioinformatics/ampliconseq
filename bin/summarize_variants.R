@@ -24,6 +24,9 @@ option_list <- list(
   make_option(c("--other-annotations"), dest = "annotation_file",
               help = "TSV file containing additional annotations (Chromosome, Position, Ref and Alt columns required)"),
 
+  make_option(c("--reference-sequence-index"), dest = "reference_sequence_index_file",
+              help = "Index file for the reference genome sequence used for chromosome sort order (expected to have .fai extension)"),
+
   make_option(c("--output-prefix"), dest = "output_prefix",
               help = "Prefix for output variant summary files in CSV and TSV format")
 )
@@ -34,11 +37,13 @@ opt <- parse_args(option_parser)
 variants_file <- opt$variants_file
 vep_file <- opt$vep_file
 annotation_file <- opt$annotation_file
+reference_sequence_index_file <- opt$reference_sequence_index_file
 output_prefix <- opt$output_prefix
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
+if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(output_prefix)) stop("Prefix for output files must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
@@ -53,6 +58,17 @@ variants <- read_tsv(variants_file, col_types = cols(
 # rounding for allele fraction and noise thresholds
 variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position noise threshold`, `Library noise threshold`), ~ round(.x, digits = 5)))
 
+# assign confidence based on the number of replicates in which the variant is
+# called and passes filters and for which there was sufficient depth of coverage
+# TODO add minimum depth option
+confidence <- variants %>%
+  mutate(Confident = Filters == "PASS" & Depth >= 100) %>%
+  group_by(Sample, Amplicon, Chromosome, Position, Ref, Alt) %>%
+  summarize(ConfidentCount = sum(Confident), ReplicateCount = n(), .groups = "drop") %>%
+  mutate(Confidence = ifelse(ConfidentCount == 0, "low", "medium")) %>%
+  mutate(Confidence = ifelse(ConfidentCount == ReplicateCount, "high", Confidence)) %>%
+  select(!c(ConfidentCount, ReplicateCount))
+
 # collapse/condense variants for all replicate libraries for a sample into a
 # single row for each distinct variant
 replicates <- variants %>%
@@ -63,36 +79,36 @@ replicates <- variants %>%
 
 variants <- variants %>%
   select(
-    Sample, ID, Amplicon, Chromosome, Position, Ref, Alt, Specific,
-    # Multiallelic,
-    Filters, Quality, Depth, `Allele fraction`,
+    Sample, Amplicon, Chromosome, Position, Ref, Alt,
+    Specific,
+    ID, Filters, Quality, Depth, `Allele fraction`,
     `Depth (pileup)`, `Allele fraction (pileup)`,
     `Position noise threshold`, `Library noise threshold`
   ) %>%
+  left_join(confidence, by = c("Sample", "Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
   left_join(replicates, by = c("Sample", "ID")) %>%
-  pivot_wider(names_from = ReplicateNumber, values_from = !c(Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific, `Position noise threshold`, ReplicateNumber), names_sep = " ") %>%
+  pivot_wider(names_from = ReplicateNumber, values_from = !c(Sample:Specific, `Position noise threshold`, Confidence, ReplicateNumber), names_sep = " ") %>%
   select(
-    Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific,
-    starts_with("ID "),
-    # starts_with("Multiallelic "),
-    starts_with("Filters "), starts_with("Quality "),
+    Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific, Confidence,
+    starts_with("ID "), starts_with("Filters "), starts_with("Quality "),
     matches("^Depth [0-9]+$"), matches("^Allele fraction [0-9]+$"),
     starts_with("Depth (pileup) "), starts_with("Allele fraction (pileup) "),
     `Position noise threshold`, starts_with("Library noise threshold ")
   )
 
-# TODO add IGV links
-
 # read Ensembl VEP annotations and add to the variant table
 vep_annotations <- read_tsv(vep_file, col_types = cols(.default = "c"))
-
 variants <- left_join(variants, vep_annotations, by = c("Chromosome", "Position", "Ref", "Alt"))
-
 
 # read additional annotations and add to the varaint table
 annotations <- read_tsv(annotation_file, col_types = cols(.default = "c"))
-
 variants <- left_join(variants, annotations, by = c("Chromosome", "Position", "Ref", "Alt"))
+
+# read reference genome index file and use chromosome order in sorting
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+variants <- variants %>%
+  mutate(Chromosome = factor(Chromosome, levels = chromosomes$Chromosome)) %>%
+  arrange(Sample, Chromosome, Position, Ref, Alt, Amplicon)
 
 # write variant summary table to CSV and TSV files
 write_csv(variants, str_c(output_prefix, ".csv"), na = "")
