@@ -17,6 +17,17 @@ if (params.help) {
 
 
 // -----------------------------------------------------------------------------
+// check parameters
+// -----------------------------------------------------------------------------
+
+variant_caller = params.variantCaller.toLowerCase().replaceAll(/[ _\\-]/, "")
+def supported_variant_callers = [ "vardict", "haplotypecaller" ]
+if (!supported_variant_callers.contains(variant_caller)) {
+    exit 1, "Unsupported variant caller - should be one of " + supported_variant_callers
+}
+
+
+// -----------------------------------------------------------------------------
 // functions
 // -----------------------------------------------------------------------------
 
@@ -175,7 +186,7 @@ process call_variants {
         java_mem = javaMemMB(task)
         vcf = "${id}.vcf"
         variants = "${id}.variants.txt"
-        template "vardict.sh"
+        template "call_variants.sh"
 }
 
 
