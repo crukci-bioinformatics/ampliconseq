@@ -201,8 +201,6 @@ public class PileupCounts extends CommandLineProgram {
         writer.write("G count");
         writer.write("\t");
         writer.write("T count");
-        writer.write("\t");
-        writer.write("N count");
         writer.write("\n");
     }
 
@@ -231,7 +229,7 @@ public class PileupCounts extends CommandLineProgram {
         writer.write(Integer.toString(pileup.size()));
 
         int[] baseCounts = pileup.getBaseCounts();
-        for (int i = 0; i < baseCounts.length; i++) {
+        for (int i = 0; i < 4; i++) {
             writer.write("\t");
             writer.write(Integer.toString(baseCounts[i]));
         }
