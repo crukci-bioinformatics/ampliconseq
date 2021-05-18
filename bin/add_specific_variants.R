@@ -86,7 +86,7 @@ variants <- sample_variants %>%
   mutate(Filters = replace_na(Filters, "not_called"))
 
 # read reference genome index file
-chromosomes <- read_tsv(reference_sequence_index_file, col_types = "ciiii", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
+chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
 
 # sort variants and write to output file
 variants %>%
