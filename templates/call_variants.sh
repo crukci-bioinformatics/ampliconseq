@@ -6,28 +6,55 @@ for group in `sed 1d !{amplicon_groups} | cut -f8 | sort -un`
 do
     awk -v group=${group} 'BEGIN { FS = "\t"; OFS = "\t" } $8 == group { print $2, $5 - 1, $6, $1 }' !{amplicon_groups} > targets.bed
 
-    JAVA_OPTS="-Xmx!{java_mem}m" vardict-java \
-        -b "!{id}.${group}.bam" \
-        -G !{reference_sequence} \
-        -N "!{id}" \
-        -f !{params.minimumAlleleFraction} \
-        -z -c 1 -S 2 -E 3 -g 4 targets.bed \
-         > vardict.${group}.txt
+    if [ "!{variant_caller}" == "vardict" ]; then
 
-    cat vardict.${group}.txt \
-        | teststrandbias.R \
-        > vardict.teststrandbias.${group}.txt
+        JAVA_OPTS="-Xmx!{java_mem}m" vardict-java \
+            -b "!{id}.${group}.bam" \
+            -G !{reference_sequence} \
+            -N "!{id}" \
+            -f !{params.minimumAlleleFraction} \
+            -z -c 1 -S 2 -E 3 -g 4 targets.bed \
+            > vardict.${group}.txt
 
-    cat vardict.teststrandbias.${group}.txt \
-        | var2vcf_valid.pl -N "!{id}" -E -P 0 -f !{params.minimumAlleleFraction} \
-        > vardict.${group}.vcf
+        cat vardict.${group}.txt \
+            | teststrandbias.R \
+            > vardict.teststrandbias.${group}.txt
+
+        cat vardict.teststrandbias.${group}.txt \
+            | var2vcf_valid.pl -N "!{id}" -E -P 0 -f !{params.minimumAlleleFraction} \
+            > variants.${group}.vcf
+
+    elif [ "!{variant_caller}" == "haplotypecaller" ]; then
+
+        gatk --java-options "-Xmx!{java_mem}m" HaplotypeCaller \
+            --input "!{id}.${group}.bam" \
+            --intervals targets.bed \
+            --reference !{reference_sequence} \
+            --output haplotypecaller.${group}.vcf \
+            --max-reads-per-alignment-start !{params.maximumReadsPerAlignmentStart} \
+            --native-pair-hmm-threads 1 \
+            --force-active
+
+        gatk --java-options "-Xmx!{java_mem}m" VariantFiltration \
+            --variant haplotypecaller.${group}.vcf \
+            --reference !{reference_sequence} \
+            --filter-name "QualByDepth" --filter-expression "QD < 2.0" \
+            --filter-name "StrandOddsRatio" --filter-expression "SOR > 3.0" \
+            --filter-name "RMSMappingQuality" --filter-expression "MQ < 40.0" \
+            --filter-name "MappingQualityRankSumTest" --filter-expression "MQRankSum < -12.5" \
+            --output variants.${group}.vcf
+
+    else
+        echo "Unrecognized variant caller: !{variant_caller}" >&2
+        exit 1
+    fi
 
     JAVA_OPTS="-Xmx!{java_mem}m" annotate-vcf-with-amplicon-ids \
-        --input vardict.${group}.vcf \
+        --input variants.${group}.vcf \
         --amplicon-intervals targets.bed \
-        --output vardict.annotated.${group}.vcf
+        --output variants.annotated.${group}.vcf
 
-    echo vardict.annotated.${group}.vcf >> vcf_list.txt
+    echo variants.annotated.${group}.vcf >> vcf_list.txt
 done
 
 gatk --java-options "-Xmx!{java_mem}m" MergeVcfs \
@@ -53,6 +80,8 @@ gatk --java-options "-Xmx!{java_mem}m" VariantsToTable \
     --asGenotypeFieldsToTake AD \
     --asGenotypeFieldsToTake AF
 
-echo -e "ID\tAmplicon\tChromosome\tPosition\tRef\tAlt\tMultiallelic\tType\tFilters\tQuality\tDepth\tRef count\tAlt count\tAllele fraction" > "!{variants}"
-awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 && $1 != "NA" { split($11, ad, ","); print "!{id}", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, ad[1], ad[2], $12 }' variant_table.txt >> "!{variants}"
+tidy_variant_table.R \
+    --input variant_table.txt \
+    --id "!{id}" \
+    --output "!{variants}"
 
