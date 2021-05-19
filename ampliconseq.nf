@@ -382,6 +382,7 @@ process summarize_variants {
 
     input:
         path variants
+        path blacklisted_variants
         path vep_annotations
         path other_annotations
         path reference_sequence_index
@@ -397,6 +398,7 @@ process summarize_variants {
         """
         summarize_variants.R \
             --variants ${variants} \
+            --blacklist ${blacklisted_variants} \
             --vep-annotations ${vep_annotations} \
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
@@ -503,10 +505,16 @@ workflow {
     )
 
     // apply filter for blacklisted variants
-    apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
+    // apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
 
     // create variant summary
-    summarize_variants(apply_blacklist_filter.out, variant_effect_predictor.out, annotate_variants.out, reference_sequence_index)
+    summarize_variants(
+        apply_background_noise_filters.out,
+        blacklisted_variants,
+        variant_effect_predictor.out,
+        annotate_variants.out,
+        reference_sequence_index
+    )
 }
 
 

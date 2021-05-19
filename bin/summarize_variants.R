@@ -18,6 +18,9 @@ option_list <- list(
   make_option(c("--variants"), dest = "variants_file",
               help = "TSV file containing variants (Chromosome, Position, Ref and Alt columns required)"),
 
+  make_option(c("--blacklist"), dest = "blacklist_file",
+              help = "TSV file containing blacklisted variants (Chromosome, Position, Ref and Alt columns required)"),
+
   make_option(c("--vep-annotations"), dest = "vep_file",
               help = "TSV file containing Ensembl VEP annotations (Chromosome, Position, Ref and Alt columns required)"),
 
@@ -38,6 +41,7 @@ option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = op
 opt <- parse_args(option_parser)
 
 variants_file <- opt$variants_file
+blacklist_file <- opt$blacklist_file
 vep_file <- opt$vep_file
 annotation_file <- opt$annotation_file
 reference_sequence_index_file <- opt$reference_sequence_index_file
@@ -45,6 +49,7 @@ output_prefix <- opt$output_prefix
 minimum_depth <- opt$minimum_depth
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
+if (is.null(blacklist_file)) stop("Input variant file must be specified")
 if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
@@ -87,8 +92,7 @@ replicates <- variants %>%
 
 variants <- variants %>%
   select(
-    Sample, Amplicon, Chromosome, Position, Ref, Alt,
-    Specific,
+    Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific,
     ID, Filters, Quality, Depth, `Allele fraction`,
     `Depth (pileup)`, `Allele fraction (pileup)`,
     `Position noise threshold`, `Library noise threshold`
@@ -103,6 +107,14 @@ variants <- variants %>%
     starts_with("Depth (pileup) "), starts_with("Allele fraction (pileup) "),
     `Position noise threshold`, starts_with("Library noise threshold ")
   )
+
+# read blacklist and add column to indicate which variants are blacklisted
+blacklisted_variants <- read_tsv(blacklist_file, col_types = cols(.default = "c"))
+blacklisted_variants <- mutate(blacklisted_variants, Blacklist = "true")
+variants <- variants %>%
+  left_join(blacklisted_variants, by = c("Chromosome", "Position", "Ref", "Alt")) %>%
+  mutate(Blacklist = replace_na(Blacklist, "false")) %>%
+  select(Sample:Specific, Blacklist, everything())
 
 # read Ensembl VEP annotations and add to the variant table
 vep_annotations <- read_tsv(vep_file, col_types = cols(.default = "c"))
