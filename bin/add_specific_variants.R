@@ -83,7 +83,7 @@ variants <- sample_variants %>%
   left_join(samples, by = "Sample") %>%
   left_join(variants, by = c("ID", "Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
   select(Sample, ID, Amplicon, Chromosome, Position, Ref, Alt, everything()) %>%
-  mutate(Filters = replace_na(Filters, "not_called"))
+  mutate(Filters = replace_na(Filters, "NOT_CALLED"))
 
 # read reference genome index file
 chromosomes <- read_tsv(reference_sequence_index_file, col_types = "cnnnn", col_names = c("Chromosome", "Length", "Offset", "Linebases", "Linewidth"))
