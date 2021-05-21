@@ -12,6 +12,7 @@ gatk --java-options "-Xmx!{java_mem}m" CollectAlignmentSummaryMetrics \
 
 extract_picard_metrics.R \
     --id "!{id}" \
+    --sample "!{sample}" \
     --metrics alignment_metrics.txt \
     --output "!{alignment_metrics}"
 
@@ -19,13 +20,13 @@ extract_picard_metrics.R \
 # extract amplicon and target intervals in BED format and convert to Picard
 # interval list format
 
-awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $3, $4, $1 }' amplicon_groups.txt > amplicons.bed
+awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $3, $4, $1 }' !{amplicon_groups} > amplicons.bed
 gatk --java-options "-Xmx!{java_mem}m" BedToIntervalList \
     --INPUT amplicons.bed \
     --SEQUENCE_DICTIONARY !{reference_sequence_dictionary} \
     --OUTPUT amplicons.interval_list.txt
 
-awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $5, $6, $1 }' amplicon_groups.txt > targets.bed
+awk 'BEGIN { FS = "\t"; OFS = "\t" } FNR > 1 { print $2, $5, $6, $1 }' !{amplicon_groups} > targets.bed
 gatk --java-options "-Xmx!{java_mem}m" BedToIntervalList \
     --INPUT targets.bed \
     --SEQUENCE_DICTIONARY !{reference_sequence_dictionary} \
@@ -43,6 +44,7 @@ gatk --java-options "-Xmx!{java_mem}m" CollectTargetedPcrMetrics \
 
 extract_picard_metrics.R \
     --id "!{id}" \
+    --sample "!{sample}" \
     --metrics targeted_pcr_metrics.txt \
     --output "!{targeted_pcr_metrics}"
 
