@@ -19,7 +19,10 @@ suppressPackageStartupMessages(library(optparse))
 option_list <- list(
 
   make_option(c("--id"), dest = "id",
-              help = "Identifier for the dataset used to populate an ID column in the output table"),
+              help = "Identifier for the library used to populate an ID column in the output table"),
+
+  make_option(c("--sample"), dest = "sample",
+              help = "Identifier for the sample used to populate a Sample column in the output table"),
 
   make_option(c("--metrics"), dest = "metrics_file",
               help = "Picard metrics file"),
@@ -32,6 +35,7 @@ option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = op
 opt <- parse_args(option_parser)
 
 id <- opt$id
+sample <- opt$sample
 metrics_file <- opt$metrics_file
 output_file <- opt$output_file
 
@@ -49,7 +53,7 @@ if (!is_empty(empty_lines)) n_max <- empty_lines[1] - 2
 metrics <- read_tsv(metrics_file, skip = skip, n_max = n_max, col_types = cols(.default = col_character()))
 
 metrics %>%
-  mutate(ID = id) %>%
-  select(ID, everything()) %>%
+  mutate(ID = id, Sample = sample) %>%
+  select(ID, Sample, everything()) %>%
   write_tsv(output_file, na = "")
 
