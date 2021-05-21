@@ -11,11 +11,15 @@ do
         --input !{bam} \
         --amplicon-intervals amplicons.bed \
         --output "!{id}.${group}.bam" \
-        --coverage "!{id}.${group}.amplicon_coverage.txt" \
+        --coverage "amplicon_coverage.${group}.txt" \
         --maximum-distance !{params.maxDistanceFromAmpliconEnd} \
         --require-both-ends-anchored=!{params.requireBothEndsAnchored} \
         --unmark-duplicate-reads
 done
 
-awk 'NR == 1 || FNR > 1' "!{id}".*.amplicon_coverage.txt > "!{amplicon_coverage}"
+collate_and_sort_amplicon_coverage.R \
+    --sample "!{sample}" \
+    --amplicons !{amplicon_groups} \
+    --output "!{amplicon_coverage}" \
+    amplicon_coverage.*.txt
 
