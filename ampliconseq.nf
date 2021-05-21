@@ -99,7 +99,7 @@ process picard_metrics {
     maxRetries 2
 
     input:
-        tuple val(id), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(id), val(sample), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
         path alignment_metrics, emit: alignment_metrics
@@ -123,10 +123,10 @@ process extract_amplicon_regions {
     maxRetries 2
 
     input:
-        tuple val(id), path(bam), path(amplicon_groups)
+        tuple val(id), val(sample), path(bam), path(amplicon_groups)
 
     output:
-        tuple val(id), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
+        tuple val(id), val(sample), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
         path amplicon_coverage, emit: coverage
 
     shell:
@@ -176,7 +176,7 @@ process call_variants {
     maxRetries 2
 
     input:
-        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
         path vcf, emit: vcf
@@ -226,14 +226,14 @@ process pileup_counts {
     maxRetries 2
 
     input:
-        tuple val(id), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
         path pileup
 
     shell:
         java_mem = javaMemMB(task)
-        pileup = "${id}.pileup.txt"
+        pileup = "${id}.pileup_counts.txt"
         template "pileup_counts.sh"
 }
 
@@ -445,16 +445,16 @@ workflow {
     // BAM file channel created by reading the validated sample sheet
     bam = samples
         .splitCsv(header: true, sep: "\t")
-        .map { row -> tuple("${row.ID}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
+        .map { row -> tuple("${row.ID}", "${row.Sample}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
 
     // Picard alignment summary metrics
     picard_metrics(bam.combine(amplicon_groups).combine(reference_sequence))
 
     // collect Picard metrics for all samples
     alignment_metrics = picard_metrics.out.alignment_metrics
-        .collectFile(name: "alignment_metrics.txt", keepHeader: true)
+        .collectFile(name: "alignment_metrics.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
     targeted_pcr_metrics = picard_metrics.out.targeted_pcr_metrics
-        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true)
+        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
 
     // extract reads matching amplicons into subset BAM files for
     // each group of non-overlapping amplicons
@@ -462,7 +462,7 @@ workflow {
 
     // collect amplicon coverage data for all samples
     amplicon_coverage = extract_amplicon_regions.out.coverage
-        .collectFile(name: "amplicon_coverage.txt", keepHeader: true)
+        .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
 
     // alignment coverage report
     alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
@@ -479,7 +479,7 @@ workflow {
 
     // collect pileup counts for all samples
     collected_pileup_counts = pileup_counts.out
-        .collectFile(name: "pileup_counts.txt", keepHeader: true)
+        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}")
 
     // combine called variants with known/expected variants for specific calling
     add_specific_variants(samples, called_variants, specific_variants, reference_sequence_index)
@@ -538,7 +538,6 @@ def printParameterSummary() {
         Species                   : ${params.vepSpecies}
         Assembly                  : ${params.vepAssembly}
         Output directory          : ${params.outputDir}
-        Output prefix             : ${params.outputPrefix}
         Minimum allele fraction   : ${params.minimumAlleleFraction}
     """.stripIndent()
     log.info ""
@@ -566,7 +565,6 @@ def helpMessage() {
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
             --outputDir                Directory to which output files are written
-            --outputPrefix             Prefix for output file names
             --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
 
         Alternatively, override settings using a configuration file such as the
@@ -581,7 +579,6 @@ def helpMessage() {
             vepSpecies            = "homo_sapiens"
             vepAssembly           = "GRCh37"
             outputDir             = "results"
-            outputPrefix          = ""
             minimumAlleleFraction = 0.01
         }
 
