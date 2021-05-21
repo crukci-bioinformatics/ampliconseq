@@ -11,10 +11,14 @@ do
         --input "!{id}.${group}.bam" \
         --amplicon-intervals targets.bed \
         --reference-sequence !{reference_sequence} \
-        --output "!{id}.${group}.pileup.txt" \
+        --output "pileup_counts.${group}.txt" \
         --minimum-mapping-quality !{params.minimumMappingQualityForPileup} \
         --minimum-base-quality !{params.minimumBaseQualityForPileup}
 done
 
-awk 'NR == 1 || FNR > 1' "!{id}".*.pileup.txt > "!{pileup}"
+collate_and_sort_amplicon_coverage.R \
+    --sample "!{sample}" \
+    --amplicons !{amplicon_groups} \
+    --output "!{pileup}" \
+    pileup_counts.*.txt
 
