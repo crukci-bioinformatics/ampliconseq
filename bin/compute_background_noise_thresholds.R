@@ -171,7 +171,7 @@ collect_row_counts <- function(data, pos) {
     count(ID, `Reference base`, wt = n)
 }
 
-pileup_col_types <- cols(ID = "c", Amplicon = "c", Chromosome = "c", Position = "i", `Reference base` = "c", .default = "i")
+pileup_col_types <- cols(Position = "i", Depth = "i", `A count` = "i", `C count` = "i", `G count` = "i", `T count` = "i", .default = "c")
 
 result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_row_counts), chunk_size = read_chunk_size, col_types = pileup_col_types)
 
