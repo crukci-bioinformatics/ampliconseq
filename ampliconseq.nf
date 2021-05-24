@@ -95,7 +95,7 @@ process picard_metrics {
     tag "${id}"
 
     memory { 2.GB * task.attempt }
-    time { 1.hour * task.attempt }
+    time { 2.hour * task.attempt }
     maxRetries 2
 
     input:
@@ -119,7 +119,7 @@ process extract_amplicon_regions {
     tag "${id}"
 
     memory { 2.GB * task.attempt }
-    time { 1.hour * task.attempt }
+    time { 2.hour * task.attempt }
     maxRetries 2
 
     input:
@@ -172,7 +172,7 @@ process call_variants {
     publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
 
     memory { 4.GB * task.attempt }
-    time { 1.hour * task.attempt }
+    time { 8.hour * task.attempt }
     maxRetries 2
 
     input:
@@ -222,7 +222,7 @@ process pileup_counts {
     tag "${id}"
 
     memory { 4.GB * task.attempt }
-    time { 1.hour * task.attempt }
+    time { 4.hour * task.attempt }
     maxRetries 2
 
     input:
@@ -264,7 +264,7 @@ process add_pileup_allele_fractions {
 // compute background noise thresholds
 process compute_background_noise_thresholds {
 
-    time { 2.hour * task.attempt }
+    time { 4.hour * task.attempt }
     maxRetries 1
 
     input:
