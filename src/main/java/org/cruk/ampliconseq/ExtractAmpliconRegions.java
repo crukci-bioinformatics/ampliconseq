@@ -132,7 +132,9 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             // coordinate
             while (iterator.hasNext()) {
                 SAMRecord record = iterator.next();
-                addAmpliconReadFlags(record, amplicon, ampliconReadFlags);
+                if (isAcceptable(record)) {
+                    addAmpliconReadFlags(record, amplicon, ampliconReadFlags);
+                }
             }
 
             iterator.close();
@@ -146,7 +148,11 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             while (iterator.hasNext()) {
                 SAMRecord record = iterator.next();
 
-                if (isAmpliconRead(record, ampliconReadFlags)) {
+                if (isAcceptable(record) && isAmpliconRead(record, ampliconReadFlags)) {
+                    // the record is from a read or read pair that has one or
+                    // both ends matching the alignment region start/end
+                    // depending on whether both ends need to be anchored
+
                     recordCount++;
 
                     if (unmarkDuplicateReads) {
@@ -185,6 +191,18 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
     }
 
     /**
+     * Determines whether the alignment record is acceptable for including in the
+     * extracted subset matching amplicon regions.
+     *
+     * @param record
+     * @return
+     */
+    private boolean isAcceptable(SAMRecord record) {
+        return !(record.getReadFailsVendorQualityCheckFlag() || record.isSecondaryAlignment()
+                || record.getReadUnmappedFlag());
+    }
+
+    /**
      * Sets flags for a read that overlaps a given amplicon.
      *
      * @param record            the SAM record
@@ -193,9 +211,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      *                          amplicon
      */
     private void addAmpliconReadFlags(SAMRecord record, Interval amplicon, Map<String, Integer> ampliconReadFlags) {
-        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag()) {
-            return;
-        }
 
         String name = record.getReadName();
         int flags = ampliconReadFlags.getOrDefault(name, 0);
@@ -239,9 +254,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      *         current amplicon
      */
     private boolean isAmpliconRead(SAMRecord record, Map<String, Integer> ampliconReadFlags) {
-        if (record.isSecondaryAlignment() || record.getReadUnmappedFlag()) {
-            return false;
-        }
 
         String name = record.getReadName();
         int flags = ampliconReadFlags.getOrDefault(name, 0);
@@ -261,10 +273,6 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      * @return
      */
     private int countBasesCovered(SAMRecord record, Interval amplicon) {
-        if (record.getReadFailsVendorQualityCheckFlag() || record.getReadUnmappedFlag() || record.getDuplicateReadFlag()
-                || record.getMappingQuality() == 0)
-            return 0;
-
         int count = 0;
         for (AlignmentBlock block : record.getAlignmentBlocks()) {
             int end = CoordMath.getEnd(block.getReferenceStart(), block.getLength());
@@ -296,11 +304,13 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         writer.write("\t");
         writer.write("Length");
         writer.write("\t");
-        writer.write("Mean coverage");
-        writer.write("\t");
         writer.write("Reads");
         writer.write("\t");
         writer.write("Read pairs");
+        writer.write("\t");
+        writer.write("Bases");
+        writer.write("\t");
+        writer.write("Mean coverage");
         writer.write("\n");
     }
 
@@ -309,9 +319,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      *
      * @param writer
      * @param amplicon
+     * @param ampliconReadFlags
      * @param baseCount
-     * @param pairCount
-     * @param anchoredBothEndsCount
      * @throws IOException
      */
     private void writeCoverage(BufferedWriter writer, Interval amplicon, Map<String, Integer> ampliconReadFlags,
@@ -334,17 +343,15 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         writer.write("\t");
         writer.write(Integer.toString(length));
 
-        double meanCoverage = baseCount / (double) length;
-
-        writer.write("\t");
-        writer.write(Float.toString((float) meanCoverage));
-
         // count reads matching at least one end of the amplicon and pairs
         // anchored to both ends
         int readCount = 0;
         int anchoredBothEndsCount = 0;
         for (int flags : ampliconReadFlags.values()) {
-            if (flags != 0) {
+            if ((flags & 1) == 1) {
+                readCount++;
+            }
+            if ((flags & 2) == 2) {
                 readCount++;
             }
             if (flags == 15) {
@@ -354,8 +361,17 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
         writer.write("\t");
         writer.write(Integer.toString(readCount));
+
         writer.write("\t");
         writer.write(Integer.toString(anchoredBothEndsCount));
+
+        writer.write("\t");
+        writer.write(Integer.toString(baseCount));
+
+        double meanCoverage = baseCount / (double) length;
+
+        writer.write("\t");
+        writer.write(Float.toString((float) meanCoverage));
 
         writer.write("\n");
     }
