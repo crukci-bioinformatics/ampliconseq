@@ -99,7 +99,7 @@ if (any(alignment_metrics$ID != ids)) {
 }
 
 # targeted PCR metrics
-targeted_pcr_metrics <- read_tsv("targeted_pcr_metrics.txt") %>%
+targeted_pcr_metrics <- read_tsv(targeted_pcr_metrics_file) %>%
   select(-any_of(c("SAMPLE", "LIBRARY", "READ_GROUP"))) %>%
   arrange(ID)
 
