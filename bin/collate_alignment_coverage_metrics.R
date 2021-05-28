@@ -29,7 +29,7 @@ option_list <- list(
               help = "Pileup counts file"),
 
   make_option(c("--output-metrics"), dest = "output_metrics_file",
-              help = "Amplicon coverage metrics file")
+              help = "Output metrics CSV file")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -50,22 +50,47 @@ if (is.null(output_metrics_file)) stop("Output merged metrics file must be speci
 suppressPackageStartupMessages(library(tidyverse))
 
 # Picard alignment summary metrics
-alignment_metrics <- read_tsv(alignment_metrics_file, col_types = cols(.default = "c")) %>%
-  filter(CATEGORY %in% c("PAIR", "UNPAIRED"))
-
-alignment_metrics <- alignment_metrics %>%
-  select(
+alignment_metrics <- read_tsv(
+  alignment_metrics_file,
+  col_types = cols(
+    PF_READS = "i",
+    MEAN_READ_LENGTH = "d",
+    PF_READS_ALIGNED = "i",
+    PF_MISMATCH_RATE = "d",
+    .default = "c")
+  ) %>%
+  filter(CATEGORY %in% c("PAIR", "UNPAIRED")) %>%
+  transmute(
     ID,
     Sample,
     Reads = PF_READS,
-    MeanReadLength = MEAN_READ_LENGTH,
-    ReadsAligned = PF_READS_ALIGNED,
-    MismatchRate = PF_MISMATCH_RATE
+    `Mean read length` = round(MEAN_READ_LENGTH, digits = 1),
+    `Reads aligned` = PF_READS_ALIGNED,
+    `% reads aligned` = round(100.0 * PF_READS_ALIGNED / PF_READS, digits = 2),
+    `% mismatches` = round(100.0 * PF_MISMATCH_RATE, digits = 3)
   )
 
 # Picard targeted PCR metrics
-targeted_pcr_metrics <- read_tsv(targeted_pcr_metrics_file, col_types = cols(.default = "c")) %>%
-  select(-any_of(c("SAMPLE", "LIBRARY", "READ_GROUP")))
+targeted_pcr_metrics <- read_tsv(
+  targeted_pcr_metrics_file,
+  col_types = cols(
+    PF_BASES = "i",
+    PF_BASES_ALIGNED = "i",
+    ON_AMPLICON_BASES = "i",
+    NEAR_AMPLICON_BASES = "i",
+    OFF_AMPLICON_BASES = "i",
+    .default = "c")
+  ) %>%
+  transmute(
+    ID,
+    Bases = PF_BASES,
+    `Bases aligned` = PF_BASES_ALIGNED,
+    `% bases aligned` = round(100.0 * PF_BASES_ALIGNED / PF_BASES, digits = 2),
+    `Bases on amplicon` = ON_AMPLICON_BASES,
+    `Bases near amplicon` = NEAR_AMPLICON_BASES,
+    `Bases off amplicon` = OFF_AMPLICON_BASES,
+    `% off amplicon` = round(100.0 * OFF_AMPLICON_BASES / PF_BASES_ALIGNED, digits = 2)
+  )
 
 if (nrow(targeted_pcr_metrics) != nrow(alignment_metrics)) {
   stop("unexpected number of entries in targeted PCR metrics file")
@@ -79,15 +104,6 @@ if (any(alignment_metrics$ID != targeted_pcr_metrics$ID)) {
 # AlignmentSummaryMetrics which are not)
 # Only using metrics that are unaffected, e.g. the number of bases aligned and
 # the division of those between off-, near- and on-amplicon loci
-targeted_pcr_metrics <- targeted_pcr_metrics %>%
-  select(
-    ID,
-    Bases = PF_BASES,
-    BasesAligned = PF_BASES_ALIGNED,
-    BasesOnAmplicon = ON_AMPLICON_BASES,
-    BasesNearAmplicon = NEAR_AMPLICON_BASES,
-    BasesOffAmplicon = OFF_AMPLICON_BASES
-  )
 
 # PF_BASES_ALIGNED is slightly higher than PF_ALIGNED_BASES from
 # CollectAlignmentSummaryMetrics - not sure why
@@ -111,7 +127,7 @@ amplicon_coverage <- read_tsv(amplicon_coverage_file, col_types = cols(Reads = "
 # assigned reads and bases per library
 assignment_metrics <- amplicon_coverage %>%
   group_by(ID) %>%
-  summarize(ReadsAssigned = sum(Reads), BasesAssigned = sum(Bases))
+  summarize(`Reads assigned` = sum(Reads), `Bases assigned` = sum(Bases))
 
 if (nrow(assignment_metrics) != nrow(assignment_metrics)) {
   stop("unexpected number of entries in amplicon coverage file")
@@ -131,9 +147,9 @@ collect_pileup_metrics <- function(pileup_counts, pos) {
       pileup_counts %>%
         group_by(ID) %>%
         summarize(
-          TargetPositions = n(),
-          BasesOnTarget = sum(`Depth unfiltered`),
-          BasesOnTargetUsable = sum(Depth)
+          `Target positions` = n(),
+          `Bases on target` = sum(`Depth unfiltered`),
+          `Bases on target (usable)` = sum(Depth)
         )
     )
 }
@@ -146,11 +162,10 @@ result <- read_tsv_chunked(
   progress = TRUE)
 
 # sum up base and target position counts for libraries that were split across
-# more than one chunk and compute the mean target coverage
+# more than one chunk
 pileup_metrics <- pileup_metrics %>%
   group_by(ID) %>%
-  summarize(across(everything(), sum)) %>%
-  mutate(MeanTargetCoverage = round(BasesOnTargetUsable / TargetPositions))
+  summarize(across(everything(), sum))
 
 # merge metrics into single data frame
 metrics <- alignment_metrics %>%
@@ -158,6 +173,14 @@ metrics <- alignment_metrics %>%
   left_join(assignment_metrics, by = "ID") %>%
   left_join(pileup_metrics, by = "ID")
 
+# compute target coverage metrics
+metrics <- metrics %>%
+  mutate(
+    `% bases on target` = round(100.0 * `Bases on target` / Bases, digits = 2),
+    `% bases on target (usable)` = round(100.0 * `Bases on target (usable)` / Bases, digits = 2),
+    `Mean target coverage` = round(`Bases on target (usable)` / `Target positions`)
+  )
+
 # write extracted metrics to output file
-write_tsv(metrics, output_metrics_file, na = "")
+write_csv(metrics, output_metrics_file, na = "")
 
