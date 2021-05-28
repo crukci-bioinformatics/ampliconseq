@@ -33,7 +33,7 @@ gatk --java-options "-Xmx!{java_mem}m" BedToIntervalList \
     --OUTPUT targets.interval_list.txt
 
 
-# Picard CollectTargetPcrMetrics bundled with GATK
+# Picard CollectTargetedPcrMetrics bundled with GATK
 
 gatk --java-options "-Xmx!{java_mem}m" CollectTargetedPcrMetrics \
     --INPUT !{bam} \
