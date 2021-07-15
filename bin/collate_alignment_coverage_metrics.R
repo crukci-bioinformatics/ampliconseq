@@ -70,6 +70,7 @@ alignment_metrics <- read_tsv(
     `% mismatches` = round(100.0 * PF_MISMATCH_RATE, digits = 3)
   )
 
+
 # Picard targeted PCR metrics
 targeted_pcr_metrics <- read_tsv(
   targeted_pcr_metrics_file,
@@ -87,9 +88,11 @@ targeted_pcr_metrics <- read_tsv(
     `Bases aligned` = PF_BASES_ALIGNED,
     `% bases aligned` = round(100.0 * PF_BASES_ALIGNED / PF_BASES, digits = 2),
     `Bases on amplicon` = ON_AMPLICON_BASES,
+    `% on amplicon` = round(100.0 * ON_AMPLICON_BASES / PF_BASES, digits = 2),
     `Bases near amplicon` = NEAR_AMPLICON_BASES,
+    `% near amplicon` = round(100.0 * NEAR_AMPLICON_BASES / PF_BASES, digits = 2),
     `Bases off amplicon` = OFF_AMPLICON_BASES,
-    `% off amplicon` = round(100.0 * OFF_AMPLICON_BASES / PF_BASES_ALIGNED, digits = 2)
+    `% off amplicon` = round(100.0 * OFF_AMPLICON_BASES / PF_BASES, digits = 2)
   )
 
 if (nrow(targeted_pcr_metrics) != nrow(alignment_metrics)) {
@@ -121,6 +124,9 @@ if (any(alignment_metrics$ID != targeted_pcr_metrics$ID)) {
 # when computing the off amplicon rate
 #   PCT_OFF_AMPLICON = OFF_AMPLICON_BASES / PF_BASES_ALIGNED
 
+# merge metrics into single data frame
+metrics <- left_join(alignment_metrics, targeted_pcr_metrics, by = "ID")
+
 # amplicon coverage
 amplicon_coverage <- read_tsv(amplicon_coverage_file, col_types = cols(Reads = "i", Bases = "i", .default = "c"))
 
@@ -136,6 +142,24 @@ if (nrow(assignment_metrics) != nrow(assignment_metrics)) {
 if (any(assignment_metrics$ID != alignment_metrics$ID)) {
   stop("inconsistent IDs in alignment metrics and amplicon coverage files")
 }
+
+# compute percentages
+assignment_metrics <- assignment_metrics %>%
+  left_join(select(metrics, ID, Reads, Bases), by = "ID") %>%
+  mutate(
+    `% reads assigned` = round(100.0 * `Reads assigned` / Reads, digits = 2),
+    `% bases assigned` = round(100.0 * `Bases assigned` / Bases, digits = 2)
+  ) %>%
+  select(
+    ID,
+    `Reads assigned`,
+    `% reads assigned`,
+    `Bases assigned`,
+    `% bases assigned`
+  )
+
+# merge metrics into single data frame
+metrics <- left_join(metrics, assignment_metrics, by = "ID")
 
 # read pileup counts in chunks and collect numbers of bases on target and the
 # usable (filtered) bases on target
@@ -167,19 +191,25 @@ pileup_metrics <- pileup_metrics %>%
   group_by(ID) %>%
   summarize(across(everything(), sum))
 
-# merge metrics into single data frame
-metrics <- alignment_metrics %>%
-  left_join(targeted_pcr_metrics, by = "ID") %>%
-  left_join(assignment_metrics, by = "ID") %>%
-  left_join(pileup_metrics, by = "ID")
-
-# compute target coverage metrics
-metrics <- metrics %>%
+# compute percentages and mean target coverage
+pileup_metrics <- pileup_metrics %>%
+  left_join(select(metrics, ID, Bases), by = "ID") %>%
   mutate(
     `% bases on target` = round(100.0 * `Bases on target` / Bases, digits = 2),
     `% bases on target (usable)` = round(100.0 * `Bases on target (usable)` / Bases, digits = 2),
     `Mean target coverage` = round(`Bases on target (usable)` / `Target positions`)
+  ) %>%
+  select(
+    ID,
+    `Bases on target`,
+    `% bases on target`,
+    `Bases on target (usable)`,
+    `% bases on target (usable)`,
+    `Mean target coverage`
   )
+
+# merge metrics into single data frame
+metrics <- left_join(metrics, pileup_metrics, by = "ID")
 
 # write extracted metrics to output file
 write_csv(metrics, output_metrics_file, na = "")
