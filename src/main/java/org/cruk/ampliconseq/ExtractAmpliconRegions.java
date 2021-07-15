@@ -57,6 +57,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
             "--amplicon-intervals" }, required = true, description = "Amplicon intervals for which to extract matching reads; can be in BED or Picard-style interval format (required).")
     private File ampliconIntervalsFile;
 
+    // @Option(names = "--target-intervals", required = true, description = "Target
+    // intervals, can be in BED or Picard-style interval format (required).")
+    // private File targetIntervalsFile;
+
     @Option(names = { "-d",
             "--maximum-distance" }, description = "The maximum distance of the alignment start/end to the amplicon start/end position (default: ${DEFAULT-VALUE}).")
     private int maximumDistance = 0;
@@ -95,6 +99,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
         IOUtil.assertFileIsReadable(bamFile);
         IOUtil.assertFileIsReadable(ampliconIntervalsFile);
+        // IOUtil.assertFileIsReadable(targetIntervalsFile);
         IOUtil.assertFileIsWritable(ampliconBamFile);
 
         SamReader reader = SamReaderFactory.makeDefault().validationStringency(validationStringency).open(bamFile);
@@ -107,6 +112,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
                 .makeSAMOrBAMWriter(reader.getFileHeader(), true, ampliconBamFile);
 
         List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconIntervalsFile);
+        // List<Interval> targets = IntervalUtils.readIntervalFile(targetIntervalsFile);
 
         BufferedWriter coverageWriter = null;
         if (ampliconCoverageFile != null) {
@@ -119,7 +125,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
         Map<String, Integer> ampliconReadFlags = new HashMap<>();
 
+        // int i = 0;
         for (Interval amplicon : amplicons) {
+            // Interval target = targets.get(i++);
+
             ampliconReadFlags.clear();
 
             logger.info("Extracting records for " + amplicon.toString());
@@ -141,6 +150,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
             int recordCount = 0;
             int baseCount = 0;
+            // int targetBaseCount = 0;
 
             // second pass over overlapping records in which reads or read
             // pairs consistent with this amplicon are written
@@ -163,6 +173,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
                     if (coverageWriter != null) {
                         baseCount += countBasesCovered(record, amplicon);
+                        // targetBaseCount += countBasesCovered(record, target);
                     }
                 }
 
@@ -174,6 +185,8 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
             if (coverageWriter != null) {
                 writeCoverage(coverageWriter, amplicon, ampliconReadFlags, baseCount);
+                // writeCoverage(coverageWriter, amplicon, ampliconReadFlags, baseCount, target,
+                // targetBaseCount);
             }
         }
 
@@ -311,6 +324,10 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
         writer.write("Bases");
         writer.write("\t");
         writer.write("Mean coverage");
+        // writer.write("\t");
+        // writer.write("Target length");
+        // writer.write("\t");
+        // writer.write("Target bases");
         writer.write("\n");
     }
 
@@ -325,6 +342,7 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
      */
     private void writeCoverage(BufferedWriter writer, Interval amplicon, Map<String, Integer> ampliconReadFlags,
             int baseCount) throws IOException {
+        // int baseCount, Interval target, int targetBaseCount) throws IOException {
 
         writer.write(id);
 
@@ -372,6 +390,12 @@ public class ExtractAmpliconRegions extends CommandLineProgram {
 
         writer.write("\t");
         writer.write(Float.toString((float) meanCoverage));
+
+        // writer.write("\t");
+        // writer.write(Integer.toString(target.getEnd() - target.getStart() + 1));
+
+        // writer.write("\t");
+        // writer.write(Integer.toString(targetBaseCount));
 
         writer.write("\n");
     }
