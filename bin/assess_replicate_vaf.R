@@ -21,8 +21,8 @@ option_list <- list(
   make_option(c("--pileup-counts"), dest = "pileup_counts_file",
               help = "Pileup counts file"),
 
-  make_option(c("--output-dir"), dest = "output_dir",
-              help = "Output directory to which the allele fraction table, heatmap plots and mismatched replicate table will be written")
+  make_option(c("--output-prefix"), dest = "output_prefix", default = "",
+              help = "Prefix for output files including the allele fraction table, heatmap plots and mismatched replicate table")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -30,11 +30,10 @@ opt <- parse_args(option_parser)
 
 samples_file <- opt$samples_file
 pileup_counts_file <- opt$pileup_counts_file
-output_dir <- opt$output_dir
+output_prefix <- opt$output_prefix
 
 if (is.null(samples_file)) stop("Samples file must be specified")
 if (is.null(pileup_counts_file)) stop("Pileup counts file must be specified")
-if (is.null(output_dir)) stop("Output directory must be specified")
 
 suppressPackageStartupMessages({
   library(tidyverse)
@@ -43,10 +42,10 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-allele_fraction_file <- str_c(output_dir, "/allele_fractions.txt")
-vaf_heatmap_prefix <- str_c(output_dir, "/vaf_heatmap")
-vaf_correlation_heatmap_prefix <- str_c(output_dir, "/vaf_correlation_heatmap")
-replicate_mismatch_file <- str_c(output_dir, "/vaf_mismatched_sample_replicates.txt")
+allele_fraction_file <- str_c(output_prefix, "allele_fractions.txt")
+vaf_heatmap_prefix <- str_c(output_prefix, "vaf_heatmap")
+vaf_correlation_heatmap_prefix <- str_c(output_prefix, "vaf_correlation_heatmap")
+replicate_mismatch_file <- str_c(output_prefix, "vaf_mismatched_sample_replicates.txt")
 
 minimum_depth <- 100
 minimum_variant_allele_fraction <- 0.1
