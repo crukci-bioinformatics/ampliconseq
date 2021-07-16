@@ -287,8 +287,9 @@ heatmap <- Heatmap(
   col = colorRampPalette(brewer.pal(n = 7, name = "Reds"))(100),
   row_names_side = "left",
   row_names_gp = gpar(fontsize = label_size),
+  column_names_side = "bottom",
+  column_names_gp = gpar(fontsize = label_size),
   column_dend_height = unit(30, "mm"),
-  show_column_names = FALSE,
   show_row_dend = FALSE,
   heatmap_legend_param = list(
     title_gp = gpar(fontsize = 9),
@@ -299,11 +300,11 @@ heatmap <- Heatmap(
   top_annotation = heatmapAnnotation
 )
 
-pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = 8, height = 8)
+pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = 8, height = 10)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
 
-svg(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = 8, height = 8)
+svg(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = 8, height = 10)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
 
