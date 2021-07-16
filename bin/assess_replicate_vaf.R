@@ -45,7 +45,7 @@ suppressPackageStartupMessages({
 allele_fraction_file <- str_c(output_prefix, "allele_fractions.txt")
 vaf_heatmap_prefix <- str_c(output_prefix, "vaf_heatmap")
 vaf_correlation_heatmap_prefix <- str_c(output_prefix, "vaf_correlation_heatmap")
-replicate_mismatch_file <- str_c(output_prefix, "vaf_mismatched_sample_replicates.txt")
+replicate_mismatch_file <- str_c(output_prefix, "vaf_mismatched_replicates.txt")
 
 minimum_depth <- 100
 minimum_variant_allele_fraction <- 0.1
