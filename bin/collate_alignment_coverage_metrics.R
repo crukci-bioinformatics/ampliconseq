@@ -88,11 +88,11 @@ targeted_pcr_metrics <- read_tsv(
     `Bases aligned` = PF_BASES_ALIGNED,
     `% bases aligned` = round(100.0 * PF_BASES_ALIGNED / PF_BASES, digits = 2),
     `Bases on amplicon` = ON_AMPLICON_BASES,
-    `% on amplicon` = round(100.0 * ON_AMPLICON_BASES / PF_BASES, digits = 2),
+    `% bases on amplicon` = round(100.0 * ON_AMPLICON_BASES / PF_BASES, digits = 2),
     `Bases near amplicon` = NEAR_AMPLICON_BASES,
-    `% near amplicon` = round(100.0 * NEAR_AMPLICON_BASES / PF_BASES, digits = 2),
+    `% bases near amplicon` = round(100.0 * NEAR_AMPLICON_BASES / PF_BASES, digits = 2),
     `Bases off amplicon` = OFF_AMPLICON_BASES,
-    `% off amplicon` = round(100.0 * OFF_AMPLICON_BASES / PF_BASES, digits = 2)
+    `% bases off amplicon` = round(100.0 * OFF_AMPLICON_BASES / PF_BASES, digits = 2)
   )
 
 if (nrow(targeted_pcr_metrics) != nrow(alignment_metrics)) {
