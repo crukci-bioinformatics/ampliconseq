@@ -208,7 +208,7 @@ replicate_mismatches <- read_tsv(replicate_mismatch_file, col_types = cols(Corre
 
 if (nrow(replicate_mismatches) == 0) {
   replicates_section <- addTo(replicates_section, newParagraph("
-No mismatched replicate libraries found.
+No mismatched replicate libraries detected.
 "))
 } else {
   replicate_mismatches_table <- replicate_mismatches %>%
