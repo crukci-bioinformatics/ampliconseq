@@ -136,36 +136,6 @@ process extract_amplicon_regions {
 }
 
 
-// create alignment coverage report and combined alignment/coverage metrics table
-process alignment_coverage_report {
-    executor "local"
-    publishDir "${params.outputDir}", mode: "copy"
-
-    input:
-        path samples
-        path alignment_metrics
-        path targeted_pcr_metrics
-        path amplicon_coverage
-
-    output:
-        path alignment_coverage_metrics
-        path alignment_coverage_report
-
-    script:
-        alignment_coverage_metrics = "alignment_coverage_metrics.csv"
-        alignment_coverage_report = "alignment_coverage_report.html"
-        """
-        alignment_coverage_report.R \
-            --samples ${samples} \
-            --alignment-metrics ${alignment_metrics} \
-            --targeted-pcr-metrics ${targeted_pcr_metrics} \
-            --amplicon-coverage ${amplicon_coverage} \
-            --output-metrics ${alignment_coverage_metrics} \
-            --output-report ${alignment_coverage_report}
-        """
-}
-
-
 // call variants
 process call_variants {
     tag "${id}"
@@ -187,6 +157,146 @@ process call_variants {
         vcf = "${id}.vcf"
         variants = "${id}.variants.txt"
         template "call_variants.sh"
+}
+
+
+// generate allele counts for each position within each amplicon
+process pileup_counts {
+    tag "${id}"
+
+    memory { 4.GB * task.attempt }
+    time { 4.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        path pileup
+
+    shell:
+        java_mem = javaMemMB(task)
+        pileup = "${id}.pileup_counts.txt"
+        template "pileup_counts.sh"
+}
+
+
+// collate alignment and amplicon/target coverage metrics
+process collate_alignment_coverage_metrics {
+    executor "local"
+    publishDir "${params.outputDir}", mode: "copy"
+
+    input:
+        path alignment_metrics
+        path targeted_pcr_metrics
+        path amplicon_coverage
+        path pileup_counts
+
+    output:
+        path alignment_coverage_metrics
+
+    script:
+        alignment_coverage_metrics = "alignment_coverage_metrics.csv"
+        """
+        collate_alignment_coverage_metrics.R \
+            --alignment-metrics ${alignment_metrics} \
+            --targeted-pcr-metrics ${targeted_pcr_metrics} \
+            --amplicon-coverage ${amplicon_coverage} \
+            --pileup-counts ${pileup_counts} \
+            --output-metrics ${alignment_coverage_metrics}
+        """
+}
+
+
+// create coverage plots including on/off target/amplicon yield stacked bar plot
+// and amplicon coverage box plot
+process create_coverage_plots {
+    executor "local"
+    publishDir "${params.outputDir}/qc", mode: "copy"
+
+    input:
+        path alignment_coverage_metrics
+        path amplicon_coverage
+
+    output:
+        path yield_plot, emit: yield_plot
+        path yield_plot_pdf
+        path amplicon_coverage_plot, emit: amplicon_coverage_plot
+        path amplicon_coverage_plot_pdf
+
+    script:
+        yield_plot = "yield.svg"
+        yield_plot_pdf = "yield.pdf"
+        amplicon_coverage_plot = "amplicon_coverage.svg"
+        amplicon_coverage_plot_pdf = "amplicon_coverage.pdf"
+        """
+        create_coverage_plots.R \
+            --alignment-metrics ${alignment_coverage_metrics} \
+            --amplicon-coverage ${amplicon_coverage}
+        """
+}
+
+
+// assess sample replicates based on correlation of SNV allele fractions
+process assess_replicate_vaf {
+    publishDir "${params.outputDir}/qc", mode: "copy"
+
+    input:
+        path samples
+        path pileup_counts
+
+    output:
+        path vaf_table
+        path vaf_heatmap, emit: vaf_heatmap
+        path vaf_heatmap_pdf
+        path vaf_correlation_heatmap, emit: vaf_correlation_heatmap
+        path vaf_correlation_heatmap_pdf
+        path mismatched_replicates, emit: mismatched_replicates
+
+    script:
+        vaf_table = "allele_fractions.txt"
+        vaf_heatmap = "vaf_heatmap.svg"
+        vaf_heatmap_pdf = "vaf_heatmap.pdf"
+        vaf_correlation_heatmap = "vaf_correlation_heatmap.svg"
+        vaf_correlation_heatmap_pdf = "vaf_correlation_heatmap.pdf"
+        mismatched_replicates = "vaf_mismatched_replicates.txt"
+        """
+        assess_replicate_vaf.R \
+            --samples ${samples} \
+            --pileup-counts ${pileup_counts}
+        """
+}
+
+
+// create QC report from collated alignment/coverage metrics and plots and the
+// replicate library allele fraction correlation/clustering
+process create_qc_report {
+    executor "local"
+    publishDir "${params.outputDir}", mode: "copy"
+
+    input:
+        path alignment_metrics
+        path yield_plot
+        path amplicon_coverage_plot
+        path vaf_heatmap
+        path vaf_correlation_heatmap
+        path mismatched_replicates
+
+    output:
+        path qc_report
+
+    script:
+        qc_report = "ampliconseq_qc_report.html"
+        """
+        create_qc_report.R \
+            --alignment-metrics ${alignment_metrics} \
+            --yield-plot ${yield_plot} \
+            --amplicon-coverage-plot ${amplicon_coverage_plot} \
+            --vaf-heatmap ${vaf_heatmap} \
+            --vaf-correlation-heatmap ${vaf_correlation_heatmap} \
+            --replicate-mismatches ${mismatched_replicates} \
+            --output-report ${qc_report}
+        """
 }
 
 
@@ -214,27 +324,6 @@ process add_specific_variants {
             --reference-sequence-index ${reference_sequence_index} \
             --output ${all_variants}
         """
-}
-
-
-// generate allele counts for each position within each amplicon
-process pileup_counts {
-    tag "${id}"
-
-    memory { 4.GB * task.attempt }
-    time { 4.hour * task.attempt }
-    maxRetries 2
-
-    input:
-        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
-
-    output:
-        path pileup
-
-    shell:
-        java_mem = javaMemMB(task)
-        pileup = "${id}.pileup_counts.txt"
-        template "pileup_counts.sh"
 }
 
 
@@ -465,7 +554,7 @@ workflow {
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
 
     // alignment coverage report
-    alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
+    // alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
 
     // call variants with VarDict
     call_variants(extract_amplicon_regions.out.bam.combine(reference_sequence))
@@ -480,6 +569,31 @@ workflow {
     // collect pileup counts for all samples
     collected_pileup_counts = pileup_counts.out
         .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}")
+
+    // collate alignment and target coverage metrics
+    collate_alignment_coverage_metrics(
+        alignment_metrics,
+        targeted_pcr_metrics,
+        amplicon_coverage,
+        collected_pileup_counts
+    )
+
+    // create coverage plots including on/off target/amplicon yield stacked bar plot
+    // and amplicon coverage box plot
+    create_coverage_plots(collate_alignment_coverage_metrics.out, amplicon_coverage)
+
+    // assess sample replicates based on correlation of SNV allele fractions
+    assess_replicate_vaf(samples, collected_pileup_counts)
+
+    // create QC report
+    create_qc_report(
+        collate_alignment_coverage_metrics.out,
+        create_coverage_plots.out.yield_plot,
+        create_coverage_plots.out.amplicon_coverage_plot,
+        assess_replicate_vaf.out.vaf_heatmap,
+        assess_replicate_vaf.out.vaf_correlation_heatmap,
+        assess_replicate_vaf.out.mismatched_replicates,
+    )
 
     // combine called variants with known/expected variants for specific calling
     add_specific_variants(samples, called_variants, specific_variants, reference_sequence_index)
@@ -538,6 +652,7 @@ def printParameterSummary() {
         Species                   : ${params.vepSpecies}
         Assembly                  : ${params.vepAssembly}
         Output directory          : ${params.outputDir}
+        Variant caller            : ${params.variantCaller}
         Minimum allele fraction   : ${params.minimumAlleleFraction}
     """.stripIndent()
     log.info ""
@@ -565,6 +680,7 @@ def helpMessage() {
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
             --outputDir                Directory to which output files are written
+            --variantCaller            The variant caller (VarDict or HaplotypeCaller)
             --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
 
         Alternatively, override settings using a configuration file such as the
@@ -579,6 +695,7 @@ def helpMessage() {
             vepSpecies            = "homo_sapiens"
             vepAssembly           = "GRCh37"
             outputDir             = "results"
+            variantCaller         = "VarDict"
             minimumAlleleFraction = 0.01
         }
 
