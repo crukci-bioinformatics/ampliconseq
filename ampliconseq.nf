@@ -219,15 +219,15 @@ process create_coverage_plots {
         path amplicon_coverage
 
     output:
-        path yield_plot, emit: yield_plot
+        path yield_plot_svg, emit: yield_plot
         path yield_plot_pdf
-        path amplicon_coverage_plot, emit: amplicon_coverage_plot
+        path amplicon_coverage_plot_svg, emit: amplicon_coverage_plot
         path amplicon_coverage_plot_pdf
 
     script:
-        yield_plot = "yield.svg"
+        yield_plot_svg = "yield.svg"
         yield_plot_pdf = "yield.pdf"
-        amplicon_coverage_plot = "amplicon_coverage.svg"
+        amplicon_coverage_plot_svg = "amplicon_coverage.svg"
         amplicon_coverage_plot_pdf = "amplicon_coverage.pdf"
         """
         create_coverage_plots.R \
@@ -247,17 +247,21 @@ process assess_replicate_vaf {
 
     output:
         path vaf_table
-        path vaf_heatmap, emit: vaf_heatmap
+        path vaf_heatmap_png, emit: vaf_heatmap
+        path vaf_heatmap_svg
         path vaf_heatmap_pdf
-        path vaf_correlation_heatmap, emit: vaf_correlation_heatmap
+        path vaf_correlation_heatmap_png, emit: vaf_correlation_heatmap
+        path vaf_correlation_heatmap_svg
         path vaf_correlation_heatmap_pdf
         path mismatched_replicates, emit: mismatched_replicates
 
     script:
         vaf_table = "allele_fractions.txt"
-        vaf_heatmap = "vaf_heatmap.svg"
+        vaf_heatmap_png = "vaf_heatmap.png"
+        vaf_heatmap_svg = "vaf_heatmap.svg"
         vaf_heatmap_pdf = "vaf_heatmap.pdf"
-        vaf_correlation_heatmap = "vaf_correlation_heatmap.svg"
+        vaf_correlation_heatmap_png = "vaf_correlation_heatmap.png"
+        vaf_correlation_heatmap_svg = "vaf_correlation_heatmap.svg"
         vaf_correlation_heatmap_pdf = "vaf_correlation_heatmap.pdf"
         mismatched_replicates = "vaf_mismatched_replicates.txt"
         """
