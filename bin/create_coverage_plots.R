@@ -88,9 +88,11 @@ yield_plot <- yield_metrics %>%
   ) +
   guides(fill = guide_legend(keywidth = 1, keyheight = 0.25, reverse = TRUE))
 
+yield_plot_width <- 8
 yield_plot_height <- nlevels(yield_metrics$id) / 7.5 + 1.0
-ggsave(str_c(yield_plot_prefix, ".svg"), plot = yield_plot, width = 8, height = yield_plot_height, limitsize = FALSE)
-ggsave(str_c(yield_plot_prefix, ".pdf"), plot = yield_plot, width = 8, height = yield_plot_height, limitsize = FALSE)
+
+ggsave(str_c(yield_plot_prefix, ".svg"), plot = yield_plot, width = yield_plot_width, height = yield_plot_height, limitsize = FALSE)
+ggsave(str_c(yield_plot_prefix, ".pdf"), plot = yield_plot, width = yield_plot_width, height = yield_plot_height, limitsize = FALSE)
 
 # amplicon coverage box plots
 
@@ -125,9 +127,10 @@ amplicon_coverage_plot <- amplicon_coverage %>%
 
 number_of_amplicons <- amplicon_coverage %>% distinct(Amplicon) %>% nrow()
 
+amplicon_coverage_plot_width <- 8
 amplicon_coverage_plot_height <- number_of_amplicons / 7.5 + 0.5
 
-ggsave(str_c(amplicon_coverage_plot_prefix, ".svg"), plot = amplicon_coverage_plot, width = 8, height = amplicon_coverage_plot_height, limitsize = FALSE)
-ggsave(str_c(amplicon_coverage_plot_prefix, ".pdf"), plot = amplicon_coverage_plot, width = 8, height = amplicon_coverage_plot_height, limitsize = FALSE)
+ggsave(str_c(amplicon_coverage_plot_prefix, ".svg"), plot = amplicon_coverage_plot, width = amplicon_coverage_plot_width, height = amplicon_coverage_plot_height, limitsize = FALSE)
+ggsave(str_c(amplicon_coverage_plot_prefix, ".pdf"), plot = amplicon_coverage_plot, width = amplicon_coverage_plot_width, height = amplicon_coverage_plot_height, limitsize = FALSE)
 
 
