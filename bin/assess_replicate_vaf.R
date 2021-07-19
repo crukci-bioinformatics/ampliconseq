@@ -40,6 +40,8 @@ suppressPackageStartupMessages({
   library(RColorBrewer)
   library(ComplexHeatmap)
   library(scales)
+  library(svglite)
+  library(rsvg)
 })
 
 allele_fraction_file <- str_c(output_prefix, "allele_fractions.txt")
@@ -239,13 +241,18 @@ heatmap <- Heatmap(
   top_annotation = heatmapAnnotation
 )
 
-pdf(str_c(vaf_heatmap_prefix, ".pdf"), width = 12, height = 6)
+heatmap_width <- 12
+heatmap_height <- 6
+
+pdf(str_c(vaf_heatmap_prefix, ".pdf"), width = heatmap_width, height = heatmap_height)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
 
-svg(str_c(vaf_heatmap_prefix, ".svg"), width = 12, height = 6)
+svglite(str_c(vaf_heatmap_prefix, ".svg"), width = heatmap_width, height = heatmap_height)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
+
+rsvg_png(str_c(vaf_heatmap_prefix, ".svg"), str_c(vaf_heatmap_prefix, ".png"), width = heatmap_width * 1000, height = heatmap_height * 1000)
 
 # correlation heatmap
 message("Creating correlation heatmap")
@@ -300,14 +307,18 @@ heatmap <- Heatmap(
   top_annotation = heatmapAnnotation
 )
 
-pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = 8, height = 10)
+correlation_heatmap_width <- 8
+correlation_heatmap_height <- 10 
+
+pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = correlation_heatmap_width, height = correlation_heatmap_height)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
 
-svg(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = 8, height = 10)
+svglite(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = correlation_heatmap_width, height = correlation_heatmap_height)
 draw(heatmap, show_annotation_legend = FALSE)
 dev.off()
 
+rsvg_png(str_c(vaf_correlation_heatmap_prefix, ".svg"), str_c(vaf_correlation_heatmap_prefix, ".png"), width = correlation_heatmap_width * 1000, height = correlation_heatmap_height * 1000)
 
 # find pairs of sample replicates with low correlation but which have high
 # correlation to a library from another sample
