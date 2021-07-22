@@ -62,6 +62,92 @@ minimum_mismatch_correlation <- 0.9
 samples <- read_tsv(samples_file, col_types = cols(.default = "c"))
 samples <- select(samples, ID, Sample)
 
+ids <- NULL
+amplicon_loci <- NULL
+variants <- NULL
+allele_fractions <- NULL
+
+pileup_col_types <- cols(Position = "i", Depth = "i", `A count` = "i", `C count` = "i", `G count` = "i", `T count` = "i", .default = "c")
+
+# function used in chunked reading of pileup file to find amplicon
+# loci where there is a variant in at least one library
+collect_variants <- function(data, pos) {
+  chunk_ids <- distinct(data, ID)
+
+  ids <<- ids %>%
+    bind_rows(chunk_ids) %>%
+    distinct()
+
+  chunk_amplicon_loci <- distinct(data, Amplicon, Chromosome, Position)
+  amplicon_loci <<- amplicon_loci %>%
+    bind_rows(chunk_amplicon_loci) %>%
+    distinct()
+
+  chunk_variants <- data %>%
+    filter(Depth >= minimum_depth) %>%
+    select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, `A count`:`T count`, Depth) %>%
+    pivot_longer(`A count`:`T count`, names_to = "Alt", values_to = "Count") %>%
+    mutate(Alt = str_remove(Alt, " count$")) %>%
+    filter(Ref != Alt) %>%
+    mutate(`Allele fraction` = Count / Depth) %>%
+    filter(`Allele fraction` >= minimum_variant_allele_fraction) %>%
+    distinct(Amplicon, Chromosome, Position, Ref, Alt)
+
+  variants <<- variants %>%
+    bind_rows(chunk_variants) %>%
+    distinct()
+}
+
+message("Reading pileup file and identifying variant loci")
+# time_summary <- system.time(
+result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_variants), chunk_size = 100000, col_types = pileup_col_types, progress = TRUE)
+# )
+# message("User time:    ", round(time_summary[["user.self"]]), "s")
+# message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
+
+message("Libraries: ", nrow(ids))
+message("Amplicon loci: ", nrow(amplicon_loci))
+message("Variants: ", nrow(variants))
+
+# function used in second pass of chunked reading of the pileup file to extract
+# the allele fractions for all libraries for those variants identified in the
+# first pass
+collect_allele_fractions_for_variants <- function(data, pos) {
+
+  chunk_allele_fractions <- data %>%
+    filter(Depth >= minimum_depth) %>%
+    select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, `A count`:`T count`, Depth) %>%
+    pivot_longer(`A count`:`T count`, names_to = "Alt", values_to = "Count") %>%
+    mutate(Alt = str_remove(Alt, " count$")) %>%
+    semi_join(variants, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
+    mutate(`Allele fraction` = Count / Depth)
+
+  allele_fractions <<- bind_rows(allele_fractions, chunk_allele_fractions)
+}
+
+message("Reading pileup file and obtaining variant allele fractions for all libraries")
+# time_summary <- system.time(
+result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_allele_fractions_for_variants), chunk_size = 100000, col_types = pileup_col_types, progress = TRUE)
+# )
+# message("User time:    ", round(time_summary[["user.self"]]), "s")
+# message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
+
+allele_fractions <- allele_fractions %>%
+  left_join(samples, by = "ID") %>%
+  select(ID, Sample, everything()) %>%
+  arrange(ID, Chromosome, Position, Ref, Alt)
+
+missing_sample_names <- allele_fractions %>%
+  filter(is.na(Sample)) %>%
+  distinct(ID)
+if (nrow(missing_sample_names) > 0) {
+  stop("missing sample names for ", str_c(missing_sample_names$ID, collapse = ", "))
+}
+
+allele_fractions %>%
+  mutate(`Allele fraction` = sprintf("%.5f", `Allele fraction`)) %>%
+  write_tsv(allele_fraction_file)
+
 allele_fractions <- allele_fractions %>%
   mutate(Variant = str_c(Amplicon, " ", Chromosome, ":", Position, " ", Ref, ">", Alt), `Allele fraction`) %>%
   select(ID, Sample, Variant, `Allele fraction`)
@@ -240,7 +326,7 @@ heatmap <- Heatmap(
 )
 
 correlation_heatmap_width <- 8
-correlation_heatmap_height <- 10 
+correlation_heatmap_height <- 10
 
 pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = correlation_heatmap_width, height = correlation_heatmap_height)
 draw(heatmap, show_annotation_legend = FALSE)
