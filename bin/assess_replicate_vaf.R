@@ -52,103 +52,22 @@ replicate_mismatch_file <- str_c(output_prefix, "vaf_mismatched_replicates.txt")
 minimum_depth <- 100
 minimum_variant_allele_fraction <- 0.1
 minimum_allele_fraction_range <- 0.25
-minimum_proportion_of_variants <- 0.5
-minimum_proportion_of_libraries <- 0.75
-minimum_replicate_correlation <- 0.95
+minimum_proportion_of_variants <- 0.75
+minimum_proportion_of_libraries <- 0.9
+number_of_variants_to_sample <- 1000
+maximum_number_of_variants <- 100
+minimum_correlation_difference <- 0.05
+minimum_mismatch_correlation <- 0.9
 
 samples <- read_tsv(samples_file, col_types = cols(.default = "c"))
 samples <- select(samples, ID, Sample)
 
-ids <- NULL
-amplicon_loci <- NULL
-variants <- NULL
-allele_fractions <- NULL
-
-pileup_col_types <- cols(Position = "i", Depth = "i", `A count` = "i", `C count` = "i", `G count` = "i", `T count` = "i", .default = "c")
-
-# function used in chunked reading of pileup file to find amplicon
-# loci where there is a variant in at least one library
-collect_variants <- function(data, pos) {
-  chunk_ids <- distinct(data, ID)
-
-  ids <<- ids %>%
-    bind_rows(chunk_ids) %>%
-    distinct()
-
-  chunk_amplicon_loci <- distinct(data, Amplicon, Chromosome, Position)
-  amplicon_loci <<- amplicon_loci %>%
-    bind_rows(chunk_amplicon_loci) %>%
-    distinct()
-
-  chunk_variants <- data %>%
-    filter(Depth >= minimum_depth) %>%
-    select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, `A count`:`T count`, Depth) %>%
-    pivot_longer(`A count`:`T count`, names_to = "Alt", values_to = "Count") %>%
-    mutate(Alt = str_remove(Alt, " count$")) %>%
-    filter(Ref != Alt) %>%
-    mutate(`Allele fraction` = Count / Depth) %>%
-    filter(`Allele fraction` >= minimum_variant_allele_fraction) %>%
-    distinct(Amplicon, Chromosome, Position, Ref, Alt)
-
-  variants <<- variants %>%
-    bind_rows(chunk_variants) %>%
-    distinct()
-}
-
-message("Reading pileup file and identifying variant loci")
-# time_summary <- system.time(
-result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_variants), chunk_size = 100000, col_types = pileup_col_types, progress = TRUE)
-# )
-# message("User time:    ", round(time_summary[["user.self"]]), "s")
-# message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
-
-message("Libraries: ", nrow(ids))
-message("Amplicon loci: ", nrow(amplicon_loci))
-message("Variants: ", nrow(variants))
-
-# function used in second pass of chunked reading of the pileup file to extract
-# the allele fractions for all libraries for those variants identified in the
-# first pass
-collect_allele_fractions_for_variants <- function(data, pos) {
-
-  chunk_allele_fractions <- data %>%
-    filter(Depth >= minimum_depth) %>%
-    select(ID, Amplicon, Chromosome, Position, Ref = `Reference base`, `A count`:`T count`, Depth) %>%
-    pivot_longer(`A count`:`T count`, names_to = "Alt", values_to = "Count") %>%
-    mutate(Alt = str_remove(Alt, " count$")) %>%
-    semi_join(variants, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
-    mutate(`Allele fraction` = Count / Depth)
-
-  allele_fractions <<- bind_rows(allele_fractions, chunk_allele_fractions)
-}
-
-message("Reading pileup file and obtaining variant allele fractions for all libraries")
-# time_summary <- system.time(
-result <- read_tsv_chunked(pileup_counts_file, SideEffectChunkCallback$new(collect_allele_fractions_for_variants), chunk_size = 100000, col_types = pileup_col_types, progress = TRUE)
-# )
-# message("User time:    ", round(time_summary[["user.self"]]), "s")
-# message("Elapsed time: ", round(time_summary[["elapsed"]]), "s")
-
 allele_fractions <- allele_fractions %>%
-  left_join(samples, by = "ID") %>%
-  select(ID, Sample, everything()) %>%
-  arrange(ID, Chromosome, Position, Ref, Alt)
+  mutate(Variant = str_c(Amplicon, " ", Chromosome, ":", Position, " ", Ref, ">", Alt), `Allele fraction`) %>%
+  select(ID, Sample, Variant, `Allele fraction`)
 
-missing_sample_names <- allele_fractions %>%
-  filter(is.na(Sample)) %>%
-  distinct(ID)
-if (nrow(missing_sample_names) > 0) {
-  stop("missing sample names for ", str_c(missing_sample_names$ID, collapse = ", "))
-}
-
-allele_fractions %>%
-  mutate(`Allele fraction` = sprintf("%.5f", `Allele fraction`)) %>%
-  write_tsv(allele_fraction_file)
-
-ids <- distinct(allele_fractions, ID)
-variants <- distinct(allele_fractions, Amplicon, Chromosome, Position, Ref, Alt)
-message("Libraries: ", nrow(ids))
-message("Variants: ", nrow(variants))
+message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+message("Variants: ", nrow(distinct(allele_fractions, Variant)))
 message("Allele fractions: ", nrow(allele_fractions))
 
 # plot distribution of allele fractions
@@ -161,47 +80,84 @@ message("Allele fractions: ", nrow(allele_fractions))
 message("Excluding variants with narrow range of allele fractions across all samples")
 
 allele_fractions <- allele_fractions %>%
-  group_by(Amplicon, Chromosome, Position, Ref, Alt) %>%
+  group_by(Variant) %>%
   filter((max(`Allele fraction`) - min(`Allele fraction`)) >= minimum_allele_fraction_range) %>%
   ungroup()
 
-ids <- distinct(allele_fractions, ID)
-variants <- distinct(allele_fractions, Amplicon, Chromosome, Position, Ref, Alt)
-message("Libraries: ", nrow(ids))
-message("Variants: ", nrow(variants))
+message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+message("Variants: ", nrow(distinct(allele_fractions, Variant)))
+
+# exclude variants with too many missing allele fractions
+message("Excluding variants with too many missing samples/allele fractions")
+
+allele_fractions <- allele_fractions %>%
+  add_count(Variant) %>%
+  filter(n >= minimum_proportion_of_libraries * nrow(distinct(allele_fractions, ID))) %>%
+  select(!n)
+
+message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+message("Variants: ", nrow(distinct(allele_fractions, Variant)))
+
+# sample to reduce the number of variants
+variants <- distinct(allele_fractions, Variant)
+if (nrow(variants) > number_of_variants_to_sample) {
+  message("Sampling random subset of variants")
+  variants <- sample_n(variants, number_of_variants_to_sample)
+  allele_fractions <- semi_join(allele_fractions, variants, by = "Variant")
+  message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+  message("Variants: ", nrow(distinct(allele_fractions, Variant)))
+}
+
+# remove highly correlated variants
+variants <- distinct(allele_fractions, Variant)
+variant_count <- nrow(variants)
+
+if (variant_count > maximum_number_of_variants) {
+  message("Removing highly correlated variants")
+
+  correlations <- allele_fractions %>%
+    select(ID, Variant, `Allele fraction`) %>%
+    pivot_wider(id_cols = ID, names_from = Variant, values_from = `Allele fraction`) %>%
+    column_to_rownames(var = "ID") %>%
+    as.matrix() %>%
+    cor(use = "pairwise.complete.obs") %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "Variant1") %>%
+    as_tibble() %>%
+    pivot_longer(!Variant1, names_to = "Variant2", values_to = "Correlation") %>%
+    filter(Variant1 < Variant2) %>%
+    arrange(desc(Correlation))
+
+  while (variant_count > maximum_number_of_variants) {
+    variant_to_remove <- correlations$Variant2[1]
+    correlations <- filter(correlations, Variant1 != variant_to_remove, Variant2 != variant_to_remove)
+    variant_count <- variant_count - 1
+  }
+
+  variants <- unique(c(correlations$Variant1, correlations$Variant2))
+  allele_fractions <- filter(allele_fractions, Variant %in% variants)
+
+  message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+  message("Variants: ", nrow(distinct(allele_fractions, Variant)))
+}
 
 # exclude libraries with too many missing allele fractions
 message("Excluding libraries with too many missing variant allele fractions")
 
 allele_fractions <- allele_fractions %>%
   add_count(ID) %>%
-  filter(n >= minimum_proportion_of_variants * nrow(variants)) %>%
+  filter(n >= minimum_proportion_of_variants * nrow(distinct(allele_fractions, Variant))) %>%
   select(!n)
 
-ids <- distinct(allele_fractions, ID)
-variants <- distinct(allele_fractions, Amplicon, Chromosome, Position, Ref, Alt)
-message("Libraries: ", nrow(ids))
-message("Variants: ", nrow(variants))
-
-# exclude variants with too many missing allele fractions
-message("Excluding variants with too many missing samples/allele fractions")
-
-allele_fractions <- allele_fractions %>%
-  add_count(Amplicon, Chromosome, Position, Ref, Alt) %>%
-  filter(n >= minimum_proportion_of_libraries * nrow(ids)) %>%
-  select(!n)
-
-ids <- distinct(allele_fractions, ID)
-variants <- distinct(allele_fractions, Amplicon, Chromosome, Position, Ref, Alt)
-message("Libraries: ", nrow(ids))
-message("Variants: ", nrow(variants))
+message("Libraries: ", nrow(distinct(allele_fractions, ID)))
+message("Variants: ", nrow(distinct(allele_fractions, Variant)))
 
 # allele fraction heatmap
 message("Creating variant allele fraction heatmap")
 
 matrix <- allele_fractions %>%
-  transmute(ID, Sample, DisplayID = str_c(ID, Sample, sep = "  "), SNV = str_c(Amplicon, " ", Chromosome, ":", Position, " ", Ref, ">", Alt), `Allele fraction`) %>%
-  pivot_wider(id_cols = c(ID, Sample, DisplayID), names_from = SNV, values_from = `Allele fraction`)
+  transmute(ID, Sample, DisplayID = str_c(ID, Sample, sep = "  "), Variant, `Allele fraction`) %>%
+  pivot_wider(id_cols = c(ID, Sample, DisplayID), names_from = Variant, values_from = `Allele fraction`)
 
 display_ids <- select(matrix, ID, Sample, DisplayID)
 
@@ -222,15 +178,18 @@ matrix <- matrix %>%
   as.matrix() %>%
   t()
 
-label_size <- max(8 - floor(ncol(matrix) / 25), 2)
+row_label_size <- max(8 - floor(nrow(matrix) / 10), 1.5)
+column_label_size <- max(8 - floor(ncol(matrix) / 25), 1.5)
 
 heatmap <- Heatmap(
   matrix,
   name = "Allele fraction",
   col = colorRampPalette(brewer.pal(n = 7, name = "Blues"))(100),
-  column_names_gp = gpar(fontsize = label_size),
+  row_names_side = "left",
+  row_names_gp = gpar(fontsize = row_label_size),
+  column_names_side = "bottom",
+  column_names_gp = gpar(fontsize = column_label_size),
   column_dend_height = unit(30, "mm"),
-  show_row_names = FALSE,
   show_row_dend = FALSE,
   heatmap_legend_param = list(
     title_gp = gpar(fontsize = 9),
@@ -257,36 +216,9 @@ rsvg_png(str_c(vaf_heatmap_prefix, ".svg"), str_c(vaf_heatmap_prefix, ".png"), w
 # correlation heatmap
 message("Creating correlation heatmap")
 
-hc <- hclust(dist(scale(t(matrix))))
-# plot(hc)
-
 correlation_matrix <- cor(matrix, use = "pairwise.complete.obs")
 
-correlations <- correlation_matrix %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "DisplayID1") %>%
-  pivot_longer(!DisplayID1, names_to = "DisplayID2", values_to = "Correlation") %>%
-  left_join(display_ids, by = c("DisplayID1" = "DisplayID")) %>%
-  rename(ID1 = ID, Sample1 = Sample) %>%
-  left_join(display_ids, by = c("DisplayID2" = "DisplayID")) %>%
-  rename(ID2 = ID, Sample2 = Sample) %>%
-  select(ID1, Sample1, ID2, Sample2, Correlation) %>%
-  filter(ID1 != ID2)
-
-correlation_matrix <- correlation_matrix[hc$order, hc$order]
-
-groups <- display_ids[hc$order,]$Sample
-group_colours <- hue_pal()(length(groups))
-names(group_colours) <- groups
-
-heatmapAnnotation <- HeatmapAnnotation(
-  df = data.frame(Group = groups),
-  col = list(Group = group_colours),
-  simple_anno_size = unit(2, "mm"),
-  show_annotation_name = FALSE
-)
-
-label_size <- max(8 - floor(ncol(matrix) / 25), 2)
+label_size <- max(8 - floor(ncol(correlation_matrix) / 25), 1.25)
 
 heatmap <- Heatmap(
   correlation_matrix,
@@ -322,15 +254,32 @@ rsvg_png(str_c(vaf_correlation_heatmap_prefix, ".svg"), str_c(vaf_correlation_he
 
 # find pairs of sample replicates with low correlation but which have high
 # correlation to a library from another sample
+correlations <- correlation_matrix %>%
+  as.data.frame() %>%
+  rownames_to_column(var = "DisplayID1") %>%
+  pivot_longer(!DisplayID1, names_to = "DisplayID2", values_to = "Correlation") %>%
+  left_join(display_ids, by = c("DisplayID1" = "DisplayID")) %>%
+  rename(ID1 = ID, Sample1 = Sample) %>%
+  left_join(display_ids, by = c("DisplayID2" = "DisplayID")) %>%
+  rename(ID2 = ID, Sample2 = Sample) %>%
+  select(ID1, Sample1, ID2, Sample2, Correlation) %>%
+  filter(ID1 != ID2)
+
+# find replicates more highly correlated with libraries from another sample
 mismatched_replicates <- correlations %>%
   filter(Sample1 == Sample2) %>%
-  filter(Correlation < minimum_replicate_correlation)
+  filter(Correlation < (1 - minimum_correlation_difference)) %>%
+  select(Sample = Sample1, ID = ID1, `Replicate ID` = ID2, Correlation) %>%
+  left_join(select(correlations, ID = ID1, `Sample 2` = Sample2, `ID 2` = ID2, `Correlation 2` = Correlation), by = "ID") %>%
+  filter(Sample != `Sample 2`) %>%
+  filter(`Correlation 2` >= minimum_mismatch_correlation) %>%
+  filter((`Correlation 2` - Correlation) >= minimum_correlation_difference) %>%
+  group_by(ID, `Replicate ID`) %>%
+  slice_max(order_by = `Correlation 2`, n = 5) %>%
+  ungroup()
 
-correlations %>%
-  semi_join(mismatched_replicates, by = "Sample1") %>%
-  filter(Sample1 == Sample2 | Correlation >= minimum_replicate_correlation) %>%
-  select(Sample1, ID1, Sample2, ID2, Correlation) %>%
-  arrange(Sample1, ID1, desc(Correlation)) %>%
-  mutate(Correlation = round(Correlation, digits = 3)) %>%
+mismatched_replicates %>%
+  arrange(Sample, ID, `Replicate ID`, `Sample 2`, `ID 2`) %>%
+  mutate(across(c(Correlation, `Correlation 2`), round, digits = 3)) %>%
   write_tsv(replicate_mismatch_file)
 
