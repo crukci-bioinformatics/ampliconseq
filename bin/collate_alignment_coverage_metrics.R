@@ -72,14 +72,16 @@ alignment_metrics <- read_tsv(
 
 
 # Picard targeted PCR metrics
+# Note reading number of bases in as doubles as can exceed maximum size for an
+# integer
 targeted_pcr_metrics <- read_tsv(
   targeted_pcr_metrics_file,
   col_types = cols(
-    PF_BASES = "i",
-    PF_BASES_ALIGNED = "i",
-    ON_AMPLICON_BASES = "i",
-    NEAR_AMPLICON_BASES = "i",
-    OFF_AMPLICON_BASES = "i",
+    PF_BASES = "d",
+    PF_BASES_ALIGNED = "d",
+    ON_AMPLICON_BASES = "d",
+    NEAR_AMPLICON_BASES = "d",
+    OFF_AMPLICON_BASES = "d",
     .default = "c")
   ) %>%
   transmute(
