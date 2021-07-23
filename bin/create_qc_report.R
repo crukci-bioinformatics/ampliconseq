@@ -193,13 +193,13 @@ to low coverage.
 "))
 
 vaf_heatmap_figure <- newFigure(
-  to_embedded_image(vaf_heatmap_file, "image/svg+xml"),
+  to_embedded_image(vaf_heatmap_file, "image/png"),
   "Heatmap of allele fractions for a set of single nucleotide substitutions. used to cluster sample libraries. Sample replicates are displayed with the same colour in the annotation bar."
 )
 replicates_section <- addTo(replicates_section, vaf_heatmap_figure)
 
 vaf_correlation_heatmap_figure <- newFigure(
-  to_embedded_image(vaf_correlation_heatmap_file, "image/svg+xml"),
+  to_embedded_image(vaf_correlation_heatmap_file, "image/png"),
   "Heatmap showing correlations between libraries of allele fractions for a set of single nucleotide substitutions. Sample replicates are displayed with the same colour in the annotation bar."
 )
 replicates_section <- addTo(replicates_section, vaf_correlation_heatmap_figure)
