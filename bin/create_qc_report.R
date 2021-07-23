@@ -212,13 +212,6 @@ No mismatched replicate libraries detected.
 "))
 } else {
   replicate_mismatches_table <- replicate_mismatches %>%
-    select(
-      `Sample 1` = Sample1,
-      `ID 1` = ID1,
-      `Sample 2` = Sample2,
-      `ID 2` = ID2,
-      Correlation
-    ) %>%
     as.data.frame() %>%
     newTable("Correlations between mismatched libraries of allele fractions for single nucleotide substitutions.", significantDigits = 3)
 
