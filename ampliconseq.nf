@@ -488,11 +488,12 @@ process summarize_variants {
         output_prefix = "variants"
         variant_summary_csv = "${output_prefix}.csv"
         variant_summary_tsv = "${output_prefix}.txt"
+        def vep_annotations_option = vep_annotations.name == "NO_FILE" ? "" : "--vep-annotations ${vep_annotations}"
         """
         summarize_variants.R \
             --variants ${variants} \
             --blacklist ${blacklisted_variants} \
-            --vep-annotations ${vep_annotations} \
+            ${vep_annotations_option} \
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
             --output-prefix ${output_prefix} \
@@ -520,7 +521,7 @@ workflow {
         .combine(reference_sequence_index)
         .combine(reference_sequence_dictionary)
 
-    vep_cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
+    vep_cache_dir = (params.vepAnnotation ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : Channel.empty())
 
     // create groups of non-overlapping amplicons
     amplicon_groups = create_non_overlapping_amplicon_groups(
@@ -608,6 +609,8 @@ workflow {
     // annotate variants using Ensembl VEP
     variant_effect_predictor(add_specific_variants.out, reference_sequence_index, vep_cache_dir)
 
+    vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : Channel.fromPath("NO_FILE") )
+
     // additional annotations (sequence context, indel length, etc.)
     annotate_variants(add_specific_variants.out.combine(reference_sequence))
 
@@ -629,7 +632,7 @@ workflow {
     summarize_variants(
         apply_background_noise_filters.out,
         blacklisted_variants,
-        variant_effect_predictor.out,
+        vep_annotations,
         annotate_variants.out,
         reference_sequence_index
     )
