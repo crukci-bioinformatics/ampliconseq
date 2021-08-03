@@ -22,7 +22,7 @@ option_list <- list(
               help = "TSV file containing blacklisted variants (Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--vep-annotations"), dest = "vep_file",
-              help = "TSV file containing Ensembl VEP annotations (Chromosome, Position, Ref and Alt columns required)"),
+              help = "TSV file containing Ensembl VEP annotations (optional; Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--other-annotations"), dest = "annotation_file",
               help = "TSV file containing additional annotations (Chromosome, Position, Ref and Alt columns required)"),
@@ -50,7 +50,7 @@ minimum_depth <- opt$minimum_depth
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(blacklist_file)) stop("Input variant file must be specified")
-if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
+#if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(output_prefix)) stop("Prefix for output files must be specified")
@@ -117,8 +117,10 @@ variants <- variants %>%
   select(Sample:Specific, Blacklist, everything())
 
 # read Ensembl VEP annotations and add to the variant table
-vep_annotations <- read_tsv(vep_file, col_types = cols(.default = "c"))
-variants <- left_join(variants, vep_annotations, by = c("Chromosome", "Position", "Ref", "Alt"))
+if (!is.null(vep_file)) {
+  vep_annotations <- read_tsv(vep_file, col_types = cols(.default = "c"))
+  variants <- left_join(variants, vep_annotations, by = c("Chromosome", "Position", "Ref", "Alt"))
+}
 
 # read additional annotations and add to the varaint table
 annotations <- read_tsv(annotation_file, col_types = cols(.default = "c"))
