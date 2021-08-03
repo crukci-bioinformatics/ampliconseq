@@ -80,7 +80,7 @@ vep_annotations <- variants %>%
     `Clinical significance` = CLIN_SIG,
     PubMed = PUBMED,
     SIFT,
-    PolyPhen,
+    any_of("PolyPhen"), # note that PolyPhen is disabled for some genomes so this column may not exist
     Codons,
     `cDNA effect` = HGVSc,
     `Protein effect` = HGVSp,
