@@ -49,7 +49,7 @@ import picocli.CommandLine.Option;
  * The PileupCount class from htsjdk-tools collapses overlapping intervals and
  * allows the reference sequence to be optional and for merging of multiple
  * input BAM files. Here the reference sequence is required and only a single
- * BAM input is allowed; the code is simpler as a result making use of
+ * BAM input is allowed; the code is simpler as a result, making use of
  * SamLocusAndReferenceIterator from htsjdk.
  *
  * @author eldrid01
