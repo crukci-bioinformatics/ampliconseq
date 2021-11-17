@@ -655,6 +655,7 @@ def printParameterSummary() {
         specificVariants          : ${params.specificVariants}
         blacklistedVariants       : ${params.blacklistedVariants}
         Reference genome sequence : ${params.referenceGenomeFasta}
+        VEP annotation            : ${params.vepAnnotation}
         VEP cache directory       : ${params.vepCacheDir}
         Species                   : ${params.vepSpecies}
         Assembly                  : ${params.vepAssembly}
@@ -683,7 +684,8 @@ def helpMessage() {
             --specificVariants         CSV/TSV file containing specific (or known) variants that are included in the summary regardless of whether these are called or not (Sample, Chromosome, Position, Ref, Alt columns required)
             --blacklistedVariants      CSV/TSV file containing blacklisted variants that will be filtered (Chromosome, Position, Ref, Alt columns required)
             --referenceGenomeFasta     FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
-            --vepCacheDir              Directory in which to install Ensembl VEP cache files
+            --vepAnnotation            Annotate variants with Ensembl VEP
+            --vepCacheDir              Directory in which Ensembl VEP cache files are installed
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
             --outputDir                Directory to which output files are written
@@ -698,6 +700,7 @@ def helpMessage() {
             bamDir                = "bam"
             ampliconDetails       = "amplicons.csv"
             referenceGenomeFasta  = "/reference_data/GRCh37.fa"
+            vepAnnotation         = true
             vepCacheDir           = "/reference_data/vep_cache"
             vepSpecies            = "homo_sapiens"
             vepAssembly           = "GRCh37"
