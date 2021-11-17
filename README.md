@@ -7,8 +7,8 @@ Variant calling pipeline for amplicon sequencing data.
 * [Introduction](#introduction)
 * [Quickstart guide](#quickstart)
 * [Installing ampliconseq](#installation)
-    * [Installing ampliconseq](#installation)
     * [Installing a specific version/release](#install_specific_release)
+    * [Updating ampliconseq](#updating)
     * [Requirements](#requirements)
 
 ---
