@@ -4,7 +4,7 @@ Variant calling pipeline for amplicon sequencing data.
 
 ## Introduction
 
-`ampliconseq` is an analysis pipeline for calling single nucleotide variants
+*ampliconseq* is an analysis pipeline for calling single nucleotide variants
 (SNVs) and indels in tagged amplicon sequencing data. Variants are called using
 [GATK HaplotypeCaller](https://gatk.broadinstitute.org), preferred for germline
 or clonal somatic mutations especially in FFPE samples, or
@@ -17,12 +17,12 @@ a QC report. Variants are annotated using
 [Ensembl Variant Effect Predictor](https://www.ensembl.org/info/docs/tools/vep/index.html)
 (VEP).
 
-The `ampliconseq` pipeline is run using the [Nextflow](https://www.nextflow.io)
+The ampliconseq pipeline is run using the [Nextflow](https://www.nextflow.io)
 scientic workflow system and all dependencies and tools are packaged in a
 [Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq).
 The inputs to the pipeline are BAM files containing aligned sequence reads.
 
-The `ampliconseq` pipeline has the following features:
+The ampliconseq pipeline has the following features:
 
 * Choice of variant callers: [GATK HaplotypeCaller](https://gatk.broadinstitute.org) and [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava)
 * Alignment and coverage QC report using metrics calculated by [Picard](https://broadinstitute.github.io/picard)
@@ -30,12 +30,13 @@ The `ampliconseq` pipeline has the following features:
 * Support for overlapping amplicon targets by partitioning reads prior to variant calling
 * Support for calling and filtering low allele fraction SNVs, e.g. for circulating tumour DNA in plasma samples with allele fractions down to 0.1%, by fitting probability distributions to model background noise
 * *Specific calling* of known mutations
+* Combines variant call outputs for replicate amplicon libraries from the same sample and assigns confidence levels based on whether calls are made or filtered in each of the replicates
 * Minimal barrier to installation with the only requirements being a Java runtime, Nextflow, and either [Docker](https://www.docker.com) or [Singularity](https://sylabs.io/docs) to run a container in which all other dependencies and tools are packaged
 * Simple installation, only Java, Nextflow and either Docker or Singularity required
 * Scale easily from deployment on multi-core workstation to high-performance compute cluster or cloud with simple configuration change
 * Accompanying visualization tool for viewing and assessing SNV calls
 
-The `ampliconseq` pipeline was developed by the
+The ampliconseq pipeline was developed by the
 [Bioinformatics Core](https://www.cruk.cam.ac.uk/core-facilities/bioinformatics-core)
 in collaboration with James Brenton's research group at the
 [Cancer Research UK Cambridge Institute](https://www.cruk.cam.ac.uk).
@@ -48,10 +49,15 @@ in collaboration with James Brenton's research group at the
 
         curl -s https://get.nextflow.io | bash
 
+    This creates a file named `nextflow` in the current directory. For
+    convenience, move this to some location on your `PATH`. For more details on
+    installing Nextflow, see the
+    [Nextflow documentation](https://www.nextflow.io).
+
 2. Download Ensembl VEP cache.
 
     This step can be skipped if the VEP cache for the relevant species and genome
-assembly is already installed.
+assembly is already installed or if variant annotation is not required.
 
         nextflow -bg -q run crukci-bioinformatics/ampliconseq \
             -main-script download_vep_cache.nf \
@@ -60,7 +66,7 @@ assembly is already installed.
             --vepSpecies homo_sapiens \
             --vepAssembly GRCh37
 
-    This will download the `ampliconseq` pipeline from
+    This will download the ampliconseq pipeline from
 [GitHub](https://github.com/crukci-bioinformatics/ampliconseq) including the
 single step workflow for downloading the VEP cache (`download_vep_cache.nf`).
 It will also download the Docker container in which Ensembl VEP is installed
@@ -74,13 +80,13 @@ directory must exist.
     The Ensembl VEP cache is quite large (around 15G for homo sapiens) and the
 download and unpacking carried out in this step can take several minutes.
 
-3. Create a configuration file (`ampliconseq.config`) specifying the sample sheet, the amplicon definition file, the reference genome, the VEP cache directory, the variant caller and various other parameters.
+3. Create a samples file (`samples.txt`) containing library and sample identifiers.
 
-4. Create a sample sheet.
+4. Create an amplicon definition file (`amplicons.csv`) providing amplicon and target region coordinates for each amplicon.
 
-5. Create an amplicon definition file, providing amplicon and target region coordinates for each amplicon.
+5. Create a configuration file (`ampliconseq.config`) specifying the sample sheet, the amplicon definition file, the reference genome, the VEP cache directory, the variant caller and various other parameters.
 
-6. Run the `ampliconseq` pipeline specifying the configuration file and execution profile.
+6. Run the ampliconseq pipeline specifying the configuration file and execution profile.
 
         nextflow \
             -c ampliconseq.config \
