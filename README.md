@@ -2,7 +2,18 @@
 
 Variant calling pipeline for amplicon sequencing data.
 
-## Introduction
+## Table of Contents
+
+* [Introduction](#introduction)
+* [Quickstart guide](#quickstart)
+* [Installing ampliconseq](#installation)
+    * [Installing ampliconseq](#installation)
+    * [Installing a specific version/release](#install_specific_release)
+    * [Requirements](#requirements)
+
+---
+
+## <a name="introduction">Introduction</a>
 
 *ampliconseq* is an analysis pipeline for calling single nucleotide variants
 (SNVs) and indels in tagged amplicon sequencing data. Variants are called using
@@ -44,7 +55,7 @@ in collaboration with James Brenton's research group at the
 
 ---
 
-## Quickstart
+## <a name="quickstart">Quickstart guide</a>
 
 1. Install Nextflow (Java 8 or later required).
 
@@ -99,7 +110,7 @@ download and unpacking carried out in this step can take several minutes.
 
 ---
 
-## Installing ampliconseq
+## <a name="installation">Installing ampliconseq</a>
 
 The ampliconseq pipeline is downloaded and run using the Nextflow workflow
 system. Dependencies, including GATK, VarDict, Picard, Ensembl Variant Effect
@@ -113,7 +124,7 @@ shown in the Quickstart section above. See the
 [Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
 more details.
 
-### Installing a specific release of ampliconseq
+### <a name="install_specific_release">Installing a specific release of ampliconseq</a>
 
 Using the latest stable
 [release](https://github.com/crukci-bioinformatics/ampliconseq/releases)
@@ -131,7 +142,7 @@ Run `nextflow info` to view details about the currently installed version.
 
     nextflow info crukci-bioinformatics/ampliconseq
 
-### Updating ampliconseq
+### <a name="updating">Updating ampliconseq</a>
 
 The latest snapshot of ampliconseq will be downloaded and run if no revision is
 specified using the `-r` or `-revision` command line option when running
@@ -146,7 +157,7 @@ master branch:
 
     nextflow pull crukci-bioinformatics/ampliconseq -r master
 
-### Requirements
+### <a name="requirements">Requirements</a>
 
 * [Nextflow](https://www.nextflow.io) 20.10.0 or above
 * [Singularity](https://sylabs.io/docs) or [Docker](https://www.docker.com)
