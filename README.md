@@ -19,8 +19,9 @@ a QC report. Variants are annotated using
 
 The ampliconseq pipeline is run using the [Nextflow](https://www.nextflow.io)
 scientic workflow system and all dependencies and tools are packaged in a
-[Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq).
-The inputs to the pipeline are BAM files containing aligned sequence reads.
+[Docker](https://www.docker.com) container that can be run either using Docker
+or [Singularity](https://sylabs.io/docs). The inputs to the pipeline are BAM
+files containing aligned sequence reads.
 
 The ampliconseq pipeline has the following features:
 
@@ -31,7 +32,7 @@ The ampliconseq pipeline has the following features:
 * Support for calling and filtering low allele fraction SNVs, e.g. for circulating tumour DNA in plasma samples with allele fractions down to 0.1%, by fitting probability distributions to model background noise
 * *Specific calling* of known mutations
 * Combines variant call outputs for replicate amplicon libraries from the same sample and assigns confidence levels based on whether calls are made or filtered in each of the replicates
-* Minimal barrier to installation with the only requirements being a Java runtime, Nextflow, and either [Docker](https://www.docker.com) or [Singularity](https://sylabs.io/docs) to run a container in which all other dependencies and tools are packaged
+* Minimal barrier to installation with the only requirements being a Java runtime, [Nextflow](https://www.nextflow.io), and either [Docker](https://www.docker.com) or [Singularity](https://sylabs.io/docs) to run a container in which all other dependencies and tools are packaged
 * Simple installation, only Java, Nextflow and either Docker or Singularity required
 * Scale easily from deployment on multi-core workstation to high-performance compute cluster or cloud with simple configuration change
 * Accompanying visualization tool for viewing and assessing SNV calls
@@ -59,7 +60,7 @@ in collaboration with James Brenton's research group at the
     This step can be skipped if the VEP cache for the relevant species and genome
 assembly is already installed or if variant annotation is not required.
 
-        nextflow -bg -q run crukci-bioinformatics/ampliconseq \
+        nextflow run crukci-bioinformatics/ampliconseq \
             -main-script download_vep_cache.nf \
             -with-singularity \
             --vepCacheDir /path_to/vep_cache \
@@ -89,13 +90,95 @@ download and unpacking carried out in this step can take several minutes.
 6. Run the ampliconseq pipeline specifying the configuration file and execution profile.
 
         nextflow \
-            -c ampliconseq.config \
-            -log logs/ampliconseq.log \
             run crukci-bioinformatics/ampliconseq \
+            -c ampliconseq.config \
             -with-singularity \
             -profile bigserver \
             -with-report logs/ampliconseq_report.html \
             -with-timeline logs/ampliconseq_timeline.html
 
 ---
+
+## Installing ampliconseq
+
+The ampliconseq pipeline is downloaded and run using the Nextflow workflow
+system. Dependencies, including GATK, VarDict, Picard, Ensembl Variant Effect
+Predictor, R and various R packages are packaged as a
+[Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
+that can be run with either [Docker](https://www.docker.com) or
+[Singularity](https://sylabs.io/docs). The container is also downloaded by
+Nextflow. The only requirements are a recent version of Nextflow and either
+Docker or Singularity. Nextflow requires Java 8 or above and can be installed as
+shown in the Quickstart section above. See the
+[Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
+more details.
+
+### Installing a specific release of ampliconseq
+
+Using the latest stable
+[release](https://github.com/crukci-bioinformatics/ampliconseq/releases)
+of ampliconseq is recommended. A specific version of ampliconseq can be
+installed using `nextflow pull` as follows:
+
+    nextflow pull crukci-bioinformatics/ampliconseq -r 1.0.0
+
+When a specific version of ampliconseq is installed in this way the revision
+also needs to be specified when running the pipeline using `nextflow run`.
+
+    nextflow run crukci-bioinformatics/ampliconseq -r 1.0.0 -c ampliconseq.config
+
+Run `nextflow info` to view details about the currently installed version.
+
+    nextflow info crukci-bioinformatics/ampliconseq
+
+### Updating ampliconseq
+
+The latest snapshot of ampliconseq will be downloaded and run if no revision is
+specified using the `-r` or `-revision` command line option when running
+ampliconseq for the first time. Subsequent runs will use this snapshot version
+but Nextflow detects if there have been revisions to the pipeline since then and
+displays a message such as the following:
+
+    NOTE: Your local project version looks outdated - a different revision is available in the remote repository [961d1d72a2]
+
+Run the following command to update ampliconseq to the latest revision on the
+master branch:
+
+    nextflow pull crukci-bioinformatics/ampliconseq -r master
+
+### Requirements
+
+* [Nextflow](https://www.nextflow.io) 20.10.0 or above
+* [Singularity](https://sylabs.io/docs) or [Docker](https://www.docker.com)
+
+Dependencies, including GATK, VarDict, Ensembl VEP, R and various R packages,
+are packaged in a
+[Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
+that will be downloaded automatically by Nextflow.
+
+ampliconseq can be run without a container by installing the following tools
+and packages:
+
+* R 4.1.0 or above and the following packages:
+    * tidyverse
+    * optparse
+    * fitdistrplus
+    * nozzle.r1
+    * base64
+    * svglite
+    * rsvg
+    * ComplexHeatmap (from Bioconductor)
+* GATK 4.2.0.0 or above
+* VarDict (Java version)
+* Ensembl Variant Effect Predictor
+
+These can be installed manually or, more straightforwardly, using Conda. The
+pipeline assumes that the executables, `R`, `gatk`, `vardict-java` and `vep`,
+are available on your `PATH`. The Docker container recipe (Dockerfile) uses
+Conda to install the dependencies and the Conda environment file located in
+the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq)
+within the `docker` subdirectory can be used to install these dependencies such
+that the pipeline can be run without using the container.
+
+
 
