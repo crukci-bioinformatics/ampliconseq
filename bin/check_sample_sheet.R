@@ -16,7 +16,7 @@ suppressPackageStartupMessages(library(optparse))
 option_list <- list(
 
   make_option(c("--input"), dest = "input_file",
-              help = "CSV/TSV file containing details of sample datasets (ID and Sample columns required)"),
+              help = "CSV/TSV file containing details of sample datasets (ID and Sample columns required, optional BAM column)"),
 
   make_option(c("--output"), dest = "output_file",
               help = "Output sample sheet file in the format required for subsequent pipeline processes")
@@ -65,6 +65,17 @@ duplicates <- samples %>%
 if (length(duplicates) > 0) {
   stop("duplicate IDs found in ", input_file, ": '", str_c(duplicates, collapse = "', '"), "'")
 }
+
+# check for BAM column and use default BAM file name if not present
+if ("BAM" %in% colnames(samples)) {
+  if (nrow(filter(samples, is.na(samples$BAM))) > 0) {
+    stop("missing BAM file names/paths in ", input_file)
+  }
+} else {
+  samples <- mutate(samples, BAM = str_c(ID, ".bam"))
+}
+
+expected_columns <- c(expected_columns, "BAM")
 
 # write new samples file containing only the expected columns
 samples %>%
