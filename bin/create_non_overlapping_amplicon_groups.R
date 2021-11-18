@@ -16,7 +16,7 @@ suppressPackageStartupMessages(library(optparse))
 option_list <- list(
 
   make_option(c("--amplicons"), dest = "amplicons_file",
-              help = "CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd, Gene columns required)"),
+              help = "CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd columns required)"),
 
   make_option(c("--reference-sequence-index"), dest = "reference_sequence_index_file",
               help = "Index file for the reference genome sequence (expected to have .fai extension)"),
@@ -46,7 +46,7 @@ if (str_ends(str_to_lower(amplicons_file), "\\.csv")) {
   amplicons <- read_tsv(amplicons_file, col_types = cols(.default = col_character()))
 }
 
-expected_columns <- c("ID", "Chromosome", "AmpliconStart", "AmpliconEnd", "TargetStart", "TargetEnd", "Gene")
+expected_columns <- c("ID", "Chromosome", "AmpliconStart", "AmpliconEnd", "TargetStart", "TargetEnd")
 missing_columns <- setdiff(expected_columns, colnames(amplicons))
 if (length(missing_columns) > 0) {
   stop("missing columns found in ", amplicons_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
