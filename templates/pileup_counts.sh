@@ -2,9 +2,9 @@
 
 set -e -o pipefail
 
-for group in `sed 1d !{amplicon_groups} | cut -f8 | sort -un`
+for group in `sed 1d !{amplicon_groups} | cut -f7 | sort -un`
 do
-    awk -v group=${group} 'BEGIN { FS = "\t"; OFS = "\t" } $8 == group { print $2, $5 - 1, $6, $1 }' !{amplicon_groups} > targets.bed
+    awk -v group=${group} 'BEGIN { FS = "\t"; OFS = "\t" } $7 == group { print $2, $5 - 1, $6, $1 }' !{amplicon_groups} > targets.bed
 
     JAVA_OPTS="-Xmx!{java_mem}m" pileup-counts \
         --id "!{id}" \
