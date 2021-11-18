@@ -228,11 +228,11 @@ The samples sheet provides details about each of the amplicon libraries. It can
 be either a tab-delimited (TSV) or comma-separated value (CSV) file. The
 following columns are expected.
 
-Column  | Description
---------|-------------
-ID      | The library identifier or barcode
-Sample  | The name or identifier of the sample from which the library was created
-BAM     | *(optional)* The BAM file name or path (can be a relative or absolute path)
+Column  | Required | Description
+--------|----------|------------
+ID      | yes      | The library identifier or barcode
+Sample  | yes      | The name or identifier of the sample from which the library was created
+BAM     | no       | The BAM file name or path (can be a relative or absolute path)
 
 Replicate libraries created from the same sample will share the same `Sample`
 name. The pipeline creates a variant call summary table in which variants called
