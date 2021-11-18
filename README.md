@@ -225,8 +225,13 @@ sequence dictionary.
 ### <a name="sample_sheet">Sample sheet</a>
 
 The samples sheet provides details about each of the amplicon libraries. It can
-be either a tab-delimited (TSV) or comma-separated value (CSV) file. The
-following columns are expected.
+be either a tab-delimited (TSV) or comma-separated value (CSV) file. By default,
+the ampliconseq pipeline expects a file named `samples.csv` in the directory in
+which the pipeline is run, but this can be can be changed within the
+configuration file or using a command line argument (see
+[below](#configuration_file)).
+
+The sample sheet is expected to have the following columns.
 
 Column  | Required | Description
 --------|----------|------------
@@ -263,6 +268,41 @@ name given in the sample sheet or to the default file name based on the ID if
 the sample sheet does not contain the BAM column.
 
 ### <a name="amplicon_coordinates_file">Amplicon coordinates file</a>
+
+The amplicon coordinates file provides the start and end coordinates for each
+amplicon and the start and end position for the target region that excludes the
+primer sequences. By default, the ampliconseq pipeline expects a file named
+`amplicons.csv` in the directory in which the pipeline is run, but this can be
+changed within the configuration file or using a command line argument (see
+[below](#configuration_file)).
+
+The following columns are all required.
+
+Column        | Description
+--------------|------------
+ID            | The amplicon identifier
+Chromosome    | The chromosome
+AmpliconStart | The start coordinate of the amplicon (includes primer sequence)
+AmpliconEnd   | The end coordinate of the amplicon (includes primer sequence)
+TargetStart   | The start coordinate of the target region (excludes primer)
+TargetEnd     | The end coordinate of the target region (excludes primer)
+
+The following snippet from an amplicon coordinates file contains a set of
+amplicons targeting the TP53 gene.
+
+```
+ID              Chromosome  AmpliconStart  AmpliconEnd  TargetStart  TargetEnd
+TP53_D0008_001  chr17       7572903        7573031      7572924      7573010
+TP53_D0008_002  chr17       7573904        7574019      7573922      7574000
+TP53_D0008_003  chr17       7573975        7574077      7573997      7574049
+TP53_D0008_004  chr17       7576789        7576917      7576812      7576898
+TP53_D0008_005  chr17       7576873        7576961      7576895      7576936
+TP53_D0008_006  chr17       7576996        7577115      7577015      7577097
+TP53_D0008_007  chr17       7577074        7577182      7577094      7577157
+TP53_D0008_008  chr17       7577434        7577528      7577453      7577506
+TP53_D0008_009  chr17       7577484        7577612      7577503      7577590
+TP53_D0008_010  chr17       7577561        7577667      7577587      7577649
+```
 
 ### <a name="configuration_file">Configuration file</a>
 
