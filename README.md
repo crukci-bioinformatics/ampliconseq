@@ -7,9 +7,15 @@ Variant calling pipeline for amplicon sequencing data.
 * [Introduction](#introduction)
 * [Quickstart guide](#quickstart)
 * [Installing ampliconseq](#installation)
-    * [Installing a specific version/release](#install_specific_release)
+    * [Installing a specific release or version](#install_specific_release)
     * [Updating ampliconseq](#updating)
     * [Requirements](#requirements)
+    * [Running the pipeline without a container](#running_without_container)
+* [Configuration](#configuration)
+    * [Sample sheet](#sample_sheet)
+    * [Amplicon coordinates file](#amplicon_coordinates_file)
+    * [Configuration file](#configuration_file)
+    * [Configuration using command line arguments](#configuration_using_command_line_args)
 
 ---
 
@@ -94,9 +100,9 @@ download and unpacking carried out in this step can take several minutes.
 
 3. Create a samples file (`samples.txt`) containing library and sample identifiers.
 
-4. Create an amplicon definition file (`amplicons.csv`) providing amplicon and target region coordinates for each amplicon.
+4. Create an amplicon coordinates file (`amplicons.csv`).
 
-5. Create a configuration file (`ampliconseq.config`) specifying the sample sheet, the amplicon definition file, the reference genome, the VEP cache directory, the variant caller and various other parameters.
+5. Create a configuration file (`ampliconseq.config`) specifying the sample sheet, the amplicon coordinates file, the reference genome, the VEP cache directory, the variant caller and various other parameters.
 
 6. Run the ampliconseq pipeline specifying the configuration file and execution profile.
 
@@ -167,6 +173,8 @@ are packaged in a
 [Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
 that will be downloaded automatically by Nextflow.
 
+### <a name="running_without_container">Running the pipeline without a container</a>
+
 ampliconseq can be run without a container by installing the following tools
 and packages:
 
@@ -191,5 +199,73 @@ the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq)
 within the `docker` subdirectory can be used to install these dependencies such
 that the pipeline can be run without using the container.
 
+Additionally, the pipeline contains a number of custom Java tools written
+using the [HTSJDK](https://github.com/samtools/htsjdk) library. These are
+available from the
+[releases](https://github.com/crukci-bioinformatics/ampliconseq/releases)
+page on the GitHub repository; download and unpack the tarball file named
+ampliconseq-1.0.0-tools.tar.gz, substituting the version number as appropriate,
+and ensure that the `bin` subdirectory is available on the `PATH`.
+
+---
+
+## <a name="configuration">Configuring the pipeline</a>
+
+The ampliconseq pipeline requires a sample sheet file, an amplicon coordinates
+file and, optionally, a configuration file in which the input files and
+parameter settings are specified.
+
+The input files are aligned sequence BAM files, in which there is a single BAM
+file for each library and where each library contains amplified DNA for all
+amplicons within the panel. The reference genome sequence FASTA file to which
+the sequence reads were aligned must be specified in the configuration file or
+as a command line argument; this needs to be indexed and have an accompanying
+sequence dictionary.
+
+### <a name="sample_sheet">Sample sheet</a>
+
+The samples sheet provides details about each of the amplicon libraries. It can
+be either a tab-delimited (TSV) or comma-separated value (CSV) file. The
+following columns are expected.
+
+Column  | Description
+--------|-------------
+ID      | The library identifier or barcode
+Sample  | The name or identifier of the sample from which the library was created
+BAM     | *(optional)* The BAM file name or path (can be a relative or absolute path)
+
+Replicate libraries created from the same sample will share the same `Sample`
+name. The pipeline creates a variant call summary table in which variants called
+within replicates of the same sample are gathered and reported together with an
+assigned confidence level. The QC report clusters libraries based on variant
+allele fractions and identifies possible sample library mispairings where
+replicate libraries are quite dissimilar to each other but more similar to other
+libraries in the run.
+
+An example sample sheet containing duplicate libraries for each of two samples
+is given below (note that a single run can contain hundreds of libraries).
+
+```
+ID                  Sample        BAM
+SLX-12850.FLD0011   JBLAB-2493    FLD0011.bam
+SLX-12850.FLD0012   JBLAB-2493    FLD0012.bam
+SLX-12850.FLD0013   JBLAB-3401    FLD0013.bam
+SLX-12850.FLD0014   JBLAB-3401    FLD0014.bam
+```
+
+If the sample sheet does not contain a BAM column the pipeline will assume that
+BAM files follow a file naming convention in which the ID is the prefix to which
+the '.bam' extension is added, e.g. `SLX-12850.FLD0011.bam` for the first
+library in the example sample sheet given above. There is a `bamDir`
+configuration parameter that can be set in order to avoid having to specify the
+full path for each BAM file in the sample sheet; it is prepended to the BAM file
+name given in the sample sheet or to the default file name based on the ID if
+the sample sheet does not contain the BAM column.
+
+### <a name="amplicon_coordinates_file">Amplicon coordinates file</a>
+
+### <a name="configuration_file">Configuration file</a>
+
+### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
 
 
