@@ -539,7 +539,7 @@ workflow {
     // BAM file channel created by reading the validated sample sheet
     bam = samples
         .splitCsv(header: true, sep: "\t")
-        .map { row -> tuple("${row.ID}", "${row.Sample}", file("${params.bamDir}/${row.ID}.bam", checkIfExists: true)) }
+        .map { row -> tuple("${row.ID}", "${row.Sample}", file(!params.bamDir ? "${row.BAM}" : "${params.bamDir}/${row.BAM}", checkIfExists: true)) }
 
     // Picard alignment summary metrics
     picard_metrics(bam.combine(amplicon_groups).combine(reference_sequence))
