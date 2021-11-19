@@ -10,13 +10,16 @@ Variant calling pipeline for amplicon sequencing data.
     * [Installing a specific release or version](#install_specific_release)
     * [Updating ampliconseq](#updating)
     * [Requirements](#requirements)
-    * [Running the pipeline without a container](#running_without_container)
+    * [Installing dependencies to run the pipeline without a container](#running_without_container)
 * [Configuration](#configuration)
     * [Sample sheet](#sample_sheet)
     * [Amplicon coordinates file](#amplicon_coordinates_file)
     * [Configuration parameters](#configuration_parameters)
         * [Command line arguments](#configuration_using_command_line_args)
         * [Configuration file](#configuration_file)
+    * [Reference genome seuqence FASTA file](#reference_genome_fasta)
+* [Running ampliconseq](#running)
+    * [Running with a container](#running_with_container)
 
 ---
 
@@ -174,7 +177,7 @@ are packaged in a
 [Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
 that will be downloaded automatically by Nextflow.
 
-### <a name="running_without_container">Running the pipeline without a container</a>
+### <a name="running_without_container">Installing dependencies to run the pipeline without a container</a>
 
 ampliconseq can be run without a container by installing the following tools
 and packages:
@@ -390,3 +393,61 @@ the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
 [`nextflow.config`](nextflow.config) contains the default settings that are
 overridden by the configuration file specified with the `-config` option when
 running the pipeline.
+
+### <a name="reference_genome_fasta">Reference genome seuqence FASTA file</a>
+
+The reference genome FASTA file using in aligning the sequence data to generate
+the BAM files, the primary input to the pipeline, needs to be specified using
+with the `referenceGenomeFasta` parameter. This FASTA file needs to be indexed,
+e.g. using `samtools faidx`, and have an accompanying sequence dictionary that
+can be created with `samtools dict` or the GATK/Picard CreateSequenceDictionary
+tool.
+
+### <a name="ensembl_vep_cache">Ensembl Variant Effect Predictor (VEP) cache</a>
+
+The pipeline can annotate variants using Ensembl VEP. It runs VEP in offline
+mode using a pre-downloaded annotation cache. The cache for a particular species
+and genome assembly can be downloaded using a single step supplementary workflow
+(`download_vep_cache`) as shown below:
+
+    nextflow run crukci-bioinformatics/ampliconseq \
+        -main-script download_vep_cache.nf \
+        -with-singularity \
+        --vepCacheDir /path_to/vep_cache \
+        --vepSpecies homo_sapiens \
+        --vepAssembly GRCh37
+
+This assumes use of VEP installed in the container and run using Singularity.
+Use `-with-docker` to use Docker instead of Singularity or remove the
+`-with-singularity` argument if not using a container (the `vep_install`
+installed with VEP will need to be available on the `PATH`).
+
+Substitute the top-level VEP cache directory as required; note that this
+directory must already exist.
+
+The Ensembl VEP cache is quite large (around 15G for homo sapiens) and the
+download and unpacking carried out in this step can take several minutes.
+
+## <a name="running">Running ampliconseq</a>
+
+### <a name="running_with_container">Running the pipeline using a container</a>
+
+The most straightforward way to run the ampliconseq pipeline is to use the
+pre-packaged container either using Docker or Singularity by specifying the
+`-with-docker` or `-with-singularity` flag.
+
+    nextflow run crukci-bioinformatics/ampliconseq -with-docker
+
+    nextflow run crukci-bioinformatics/ampliconseq -with-singularity
+
+Nextflow will automatically fetch the container from
+[Docker Hub](https://hub.docker.com/r/crukcibioinformatics/ampliconseq) and,
+if using Singularity, will build the Singularity image from the Docker
+container. Singularity is more likely than Docker to be available on
+high-performance cluster computing platforms.
+
+When using Singularity, the pipeline assumes that the user bind control feature
+is enabled and sets `singularity.autoMounts = true` in the Nextflow
+configuration file. See the
+[Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
+more details on this.
