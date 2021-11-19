@@ -17,9 +17,10 @@ Variant calling pipeline for amplicon sequencing data.
     * [Configuration parameters](#configuration_parameters)
         * [Command line arguments](#configuration_using_command_line_args)
         * [Configuration file](#configuration_file)
-    * [Reference genome seuqence FASTA file](#reference_genome_fasta)
+    * [Reference genome sequence FASTA file](#reference_genome_fasta)
 * [Running ampliconseq](#running)
     * [Running with a container](#running_with_container)
+    * [Execution profiles](#execution_profiles)
 
 ---
 
@@ -61,7 +62,7 @@ The ampliconseq pipeline has the following features:
 The ampliconseq pipeline was developed by the
 [Bioinformatics Core](https://www.cruk.cam.ac.uk/core-facilities/bioinformatics-core)
 in collaboration with James Brenton's research group at the
-[Cancer Research UK Cambridge Institute](https://www.cruk.cam.ac.uk).
+[Cancer Research UK Cambridge Institute](https://www.cruk.cam.ac.uk) (CRUK CI).
 
 ---
 
@@ -394,7 +395,7 @@ the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
 overridden by the configuration file specified with the `-config` option when
 running the pipeline.
 
-### <a name="reference_genome_fasta">Reference genome seuqence FASTA file</a>
+### <a name="reference_genome_fasta">Reference genome sequence FASTA file</a>
 
 The reference genome FASTA file using in aligning the sequence data to generate
 the BAM files, the primary input to the pipeline, needs to be specified using
@@ -451,3 +452,50 @@ is enabled and sets `singularity.autoMounts = true` in the Nextflow
 configuration file. See the
 [Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
 more details on this.
+
+Alternatively, the use of the Docker container can be specified in the
+configuration file by adding the following line:
+
+    docker.enabled = true
+
+Similarly, to enable Singularity, instead add the following line:
+
+    singularity.enabled = true
+
+These can also be added as part of an execution profile (see next section).
+
+### <a name="execution_profiles">Execution profiles</a>
+
+Resource settings are configured using Nextflow profiles. The ampliconseq
+pipeline provides three profiles - `standard`, `bigserver` and `cluster`
+configured for running on servers and the high-performance compute cluster at
+CRUK CI. These specifythe maximum number of CPUs or memory that can be used at
+any one time during the pipeline run or the maximum number of jobs that can be
+submitted to the cluster to be run in parallel.
+
+A custom profile can be created in the configuration file, e.g.
+`ampliconseq.config`, an example of which is shown below.
+
+    myprofile {
+        process {
+            executor = 'slurm'
+            queue = 'long'
+        }
+        executor {
+            queueSize = 25
+            pollInterval = 30.sec
+            jobName = { "'$task.name'" }
+        }
+        singularity.enabled = true
+    }
+
+This profile can be specified using the `-profile` command line option.
+
+    nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config -profile myprofile
+
+With this profile, Nextflow will submit jobs to cluster nodes using the SLURM
+resource manager. A maximum number of 25 jobs that will be submitted to the
+'long' queue for running in parallel and Nextflow will poll every 30 seconds
+to check for completed jobs. Use of Singularity for running jobs using the
+container is enabled so it is not necessary to specify this separately with the
+`-with-singularity` option.
