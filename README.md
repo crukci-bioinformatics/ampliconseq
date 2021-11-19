@@ -21,6 +21,8 @@ Variant calling pipeline for amplicon sequencing data.
 * [Running ampliconseq](#running)
     * [Running with a container](#running_with_container)
     * [Execution profiles](#execution_profiles)
+    * [Nextflow reports](#nextflow_reports)
+    * [Nextflow log files and work directories](#nextflow_log_files_and_work_directories)
 
 ---
 
@@ -499,3 +501,38 @@ resource manager. A maximum number of 25 jobs that will be submitted to the
 to check for completed jobs. Use of Singularity for running jobs using the
 container is enabled so it is not necessary to specify this separately with the
 `-with-singularity` option.
+
+### <a name="nextflow_reports">Nextflow reports</a>
+
+Nextflow can provide a useful summary report detailing the completion status,
+execution time and memory used by each task, and a timeline chart.
+
+Use the `-with-report` and `-with-timeline` command line options to produce
+these reports, e.g.
+
+     nextflow run crukci-bioinformatics/ampliconseq \
+        -config ampliconseq.config \
+        -with-report ampliconseq.report.html \
+        -with-timeline ampliconseq.timeline.html
+
+### <a name="nextflow_log_files_and_work_directories">Nextflow log files and work directories</a>
+
+Nextflow logs information to a hidden file named `.nextflow.log` in the launch
+directory in which ampliconseq is run. This can contain useful information that
+can help with debugging problems with running the pipeline. It will, for
+example, show which task(s) failed and the directory in which that task was run.
+An alternative log file name can be specified using the `-log` command line
+argument (run `nextflow help` for more details on Nextflow command line options).
+
+Nextflow runs each task within its own directory. These directories are created
+under a directory named `work`. Each task run directory contains hidden files
+with names such as `.command.sh` and `.command.out`, which can be helpful in
+debugging Nextflow pipelines.
+
+The work directories contain intermediate files produced when running
+ampliconseq. The final outputs are written either to the launch directory or the
+directory specified using the `--outputDir` command line option or the
+`outputDir` parameter. The `work` directory can be deleted on successful
+completion of the ampliconseq pipeline unless other Nextflow pipelines are also
+being run from the launch directory.
+
