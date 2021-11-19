@@ -341,8 +341,8 @@ species and assembly. It also specifies the variant caller to use (VarDict) and
 the minimum allele fraction of variants to be called.
 
     nextflow run crukci-bioinformatics/ampliconseq \
-        --sampleSheet samples.txt \
-        --ampliconDetails /data/reference_data/ampliconseq/tp53_panel/amplicons.csv \
+        --samples samples.txt \
+        --amplicons /data/reference_data/ampliconseq/tp53_panel/amplicons.csv \
         --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa \
         --vepAnnotation \
         --vepCacheDir vep_cache \
@@ -369,8 +369,8 @@ the above example using command line arguments.
 
 ```
 params {
-    sampleSheet           = "samples.txt"
-    ampliconDetails       = "/data/reference_data/ampliconseq/tp53_panel/amplicons.csv"
+    samples               = "samples.txt"
+    amplicons             = "/data/reference_data/ampliconseq/tp53_panel/amplicons.csv"
     referenceGenomeFasta  = "/data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa"
     vepAnnotation         = true
     vepSpecies            = "homo_sapiens"

@@ -508,8 +508,8 @@ process summarize_variants {
 
 workflow {
 
-    sample_sheet = channel.fromPath(params.sampleSheet, checkIfExists: true)
-    amplicon_details = channel.fromPath(params.ampliconDetails, checkIfExists: true)
+    sample_sheet = channel.fromPath(params.samples, checkIfExists: true)
+    amplicon_details = channel.fromPath(params.amplicons, checkIfExists: true)
     specific_variants = channel.fromPath(params.specificVariants, checkIfExists: true)
     blacklisted_variants = channel.fromPath(params.blacklistedVariants, checkIfExists: true)
 
@@ -649,9 +649,9 @@ def printParameterSummary() {
         Variant calling pipeline for amplicon sequencing data
         =====================================================
 
-        Sample sheet              : ${params.sampleSheet}
+        Sample sheet              : ${params.samples}
         BAM directory             : ${params.bamDir}
-        Amplicon details          : ${params.ampliconDetails}
+        Amplicon details          : ${params.amplicons}
         specificVariants          : ${params.specificVariants}
         blacklistedVariants       : ${params.blacklistedVariants}
         Reference genome sequence : ${params.referenceGenomeFasta}
@@ -678,9 +678,9 @@ def helpMessage() {
 
         Options:
             --help                     Show this message and exit
-            --sampleSheet              CSV/TSV file containing details of samples and libraries (ID and Sample columns required)
+            --samples                  CSV/TSV file containing details of samples and libraries (ID and Sample columns required)
             --bamDir                   Directory in which BAM files are located
-            --ampliconDetails          CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd columns required)
+            --amplicons                CSV/TSV file containing details of the amplicons (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd columns required)
             --specificVariants         CSV/TSV file containing specific (or known) variants that are included in the summary regardless of whether these are called or not (Sample, Chromosome, Position, Ref, Alt columns required)
             --blacklistedVariants      CSV/TSV file containing blacklisted variants that will be filtered (Chromosome, Position, Ref, Alt columns required)
             --referenceGenomeFasta     FASTA file containing the reference genome sequence (must be indexed, i.e. have an accompanying .fai file)
@@ -696,9 +696,9 @@ def helpMessage() {
         following:
 
         params {
-            sampleSheet           = "samples.csv"
+            samples               = "samples.csv"
             bamDir                = "bam"
-            ampliconDetails       = "amplicons.csv"
+            amplicons             = "amplicons.csv"
             referenceGenomeFasta  = "/reference_data/GRCh37.fa"
             vepAnnotation         = true
             vepCacheDir           = "/reference_data/vep_cache"
