@@ -109,7 +109,7 @@ download and unpacking carried out in this step can take several minutes.
 
         nextflow \
             run crukci-bioinformatics/ampliconseq \
-            -c ampliconseq.config \
+            -config ampliconseq.config \
             -with-singularity \
             -profile bigserver \
             -with-report logs/ampliconseq_report.html \
@@ -136,7 +136,7 @@ more details.
 Using the latest stable
 [release](https://github.com/crukci-bioinformatics/ampliconseq/releases)
 of ampliconseq is recommended. A specific version of ampliconseq can be
-installed using `nextflow pull` as follows:
+installed using `nextflow pull` as follows using the `-r` or `-revision` option:
 
     nextflow pull crukci-bioinformatics/ampliconseq -r 1.0.0
 
@@ -351,5 +351,42 @@ The default parameter settings can be found in the
 
 #### <a name="configuration_file">Configuration file</a>
 
+A more convenient way of setting pipeline parameters makes use of a
+configuration file, e.g. `ampliconseq.config`. This is specified when running
+the pipeline using the `-config` (or `-c`) option.
 
+    nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config
 
+The following is a sample configuration file that sets the same sample sheet,
+amplicon coordinates file, VEP annotation and variant calling settings as in
+the above example using command line arguments.
+
+```
+params {
+    sampleSheet           = "samples.txt"
+    ampliconDetails       = "/data/reference_data/ampliconseq/tp53_panel/amplicons.csv"
+    referenceGenomeFasta  = "/data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa"
+    vepAnnotation         = true
+    vepSpecies            = "homo_sapiens"
+    vepAssembly           = "GRCh37"
+    outputDir             = "results"
+    variantCaller         = "vardict"
+    minimumAlleleFraction = 0.01
+}
+```
+
+This takes the form of a `name = value` syntax with a separate line for each
+parameter within curly braces bounding a `params` block. Note that file names
+and paths and other character or string values need to be quoted while numeric
+values do not, and boolean parameters such as `vepAnnotation` can be set to
+`true` or `false`.
+
+See the [Nextflow documentation](https://www.nextflow.io/docs/latest) for more
+details about the configuration syntax.
+
+The configuration file will normally contain a subset of the parameters
+specified in the [`nextflow.config`](nextflow.config) found at the top level of
+the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
+[`nextflow.config`](nextflow.config) contains the default settings that are
+overridden by the configuration file specified with the `-config` option when
+running the pipeline.
