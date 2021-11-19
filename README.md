@@ -14,8 +14,9 @@ Variant calling pipeline for amplicon sequencing data.
 * [Configuration](#configuration)
     * [Sample sheet](#sample_sheet)
     * [Amplicon coordinates file](#amplicon_coordinates_file)
-    * [Configuration file](#configuration_file)
-    * [Configuration using command line arguments](#configuration_using_command_line_args)
+    * [Configuration parameters](#configuration_parameters)
+        * [Command line arguments](#configuration_using_command_line_args)
+        * [Configuration file](#configuration_file)
 
 ---
 
@@ -194,10 +195,13 @@ and packages:
 These can be installed manually or, more straightforwardly, using Conda. The
 pipeline assumes that the executables, `R`, `gatk`, `vardict-java` and `vep`,
 are available on your `PATH`. The Docker container recipe (Dockerfile) uses
-Conda to install the dependencies and the Conda environment file located in
-the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq)
+Conda to install the dependencies and the Conda environment file, `conda.yml`,
+located in the
+[GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq)
 within the `docker` subdirectory can be used to install these dependencies such
 that the pipeline can be run without using the container.
+
+        conda env create -f conda.yml
 
 Additionally, the pipeline contains a number of custom Java tools written
 using the [HTSJDK](https://github.com/samtools/htsjdk) library. These are
@@ -304,8 +308,48 @@ TP53_D0008_009  chr17       7577484        7577612      7577503      7577590
 TP53_D0008_010  chr17       7577561        7577667      7577587      7577649
 ```
 
-### <a name="configuration_file">Configuration file</a>
+### <a name="configuration_parameters">Configuration parameters</a>
 
-### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
+The ampliconseq pipeline has a number of configuration parameters. Use the
+`--help` option to see usage instructions and details of each.
+
+    nextflow run crukci-bioinformatics/ampliconseq --help
+
+These can be set either as command-line options or using a configuration file.
+
+#### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
+
+It is possible to set configuration parameters using command line arguments.
+This can become unwieldy when changing a large number of settings and the
+alternative use of a configuration file is generally preferred.
+
+As an example, the path to the reference genome sequence FASTA file, to which
+the sequence data were aligned, can be specified using the
+`referenceGenomeFasta` paramter as follows:
+
+    nextflow run crukci-bioinformatics/ampliconseq --referenceGenomeFasta /data/reference_data reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa 
+
+The following example specifies the sample sheet and amplicon coordinates file,
+and instructs the pipeline to annotate variants using Ensembl VEP for the given
+species and assembly. It also specifies the variant caller to use (VarDict) and
+the minimum allele fraction of variants to be called.
+
+    nextflow run crukci-bioinformatics/ampliconseq \
+        --sampleSheet samples.txt \
+        --ampliconDetails /data/reference_data/ampliconseq/tp53_panel/amplicons.csv \
+        --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa \
+        --vepAnnotation \
+        --vepCacheDir vep_cache \
+        --vepSpecies homo_sapiens \
+        --vepAssembly GRCh37 \
+        --variantCaller vardict \
+        --minimumAlleleFraction 0.01
+
+The default parameter settings can be found in the
+[`nextflow.config`](nextflow.config) file in the
+[GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
+
+#### <a name="configuration_file">Configuration file</a>
+
 
 
