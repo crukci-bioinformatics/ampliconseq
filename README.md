@@ -371,7 +371,7 @@ As an example, the path to the reference genome sequence FASTA file, to which
 the sequence data were aligned, can be specified using the
 `referenceGenomeFasta` paramter as follows:
 
-    nextflow run crukci-bioinformatics/ampliconseq --referenceGenomeFasta /data/reference_data reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa 
+    nextflow run crukci-bioinformatics/ampliconseq --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa 
 
 The following example specifies the sample sheet and amplicon coordinates file,
 and instructs the pipeline to annotate variants using Ensembl VEP for the given
