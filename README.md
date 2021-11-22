@@ -83,7 +83,7 @@ at the
     convenience, move this to some location on your `PATH`. See the
     [Nextflow documentation](https://www.nextflow.io) for more details on
     installing Nextflow.
-    
+
 2. Download Ensembl VEP cache.
 
     This step can be skipped if the VEP cache for the relevant species and genome
@@ -328,7 +328,7 @@ The ampliconseq pipeline has a number of configuration parameters. Use the
     nextflow run crukci-bioinformatics/ampliconseq --help
 
 
-The following parameters can be configured. These can be set either as 
+The following parameters can be configured. These can be set either as
 [command line options](#configuration_using_command_line_args) or using a
 [configuration file](#configuration_file).
 
@@ -371,7 +371,7 @@ As an example, the path to the reference genome sequence FASTA file, to which
 the sequence data were aligned, can be specified using the
 `referenceGenomeFasta` paramter as follows:
 
-    nextflow run crukci-bioinformatics/ampliconseq --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa 
+    nextflow run crukci-bioinformatics/ampliconseq --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa
 
 The following example specifies the sample sheet and amplicon coordinates file,
 and instructs the pipeline to annotate variants using Ensembl VEP for the given
