@@ -28,8 +28,11 @@ option_list <- list(
   make_option(c("--pileup-counts"), dest = "pileup_counts_file",
               help = "Pileup counts file"),
 
-  make_option(c("--output-metrics"), dest = "output_metrics_file",
-              help = "Output metrics CSV file")
+  make_option(c("--alignment-coverage-metrics"), dest = "alignment_coverage_metrics_file",
+              help = "Output alignment coverage metrics CSV file"),
+
+  make_option(c("--amplicon-coverage-metrics"), dest = "amplicon_coverage_metrics_file",
+              help = "Output amplicon coverage metrics CSV file")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -39,13 +42,15 @@ alignment_metrics_file <- opt$alignment_metrics_file
 targeted_pcr_metrics_file <- opt$targeted_pcr_metrics_file
 amplicon_coverage_file <- opt$amplicon_coverage_file
 pileup_counts_file <- opt$pileup_counts_file
-output_metrics_file <- opt$output_metrics_file
+alignment_coverage_metrics_file <- opt$alignment_coverage_metrics_file
+amplicon_coverage_metrics_file <- opt$amplicon_coverage_metrics_file
 
 if (is.null(alignment_metrics_file)) stop("Alignment metrics file must be specified")
 if (is.null(targeted_pcr_metrics_file)) stop("Targeted PCR metrics file must be specified")
 if (is.null(amplicon_coverage_file)) stop("Alignment coverage file must be specified")
 if (is.null(pileup_counts_file)) stop("Pileup counts file must be specified")
-if (is.null(output_metrics_file)) stop("Output merged metrics file must be specified")
+if (is.null(alignment_coverage_metrics_file)) stop("Output alignment coverage metrics file must be specified")
+if (is.null(amplicon_coverage_metrics_file)) stop("Output amplicon coverage metrics file must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -213,6 +218,11 @@ pileup_metrics <- pileup_metrics %>%
 # merge metrics into single data frame
 metrics <- left_join(metrics, pileup_metrics, by = "ID")
 
-# write extracted metrics to output file
-write_csv(metrics, output_metrics_file, na = "")
+# write merged alignment coverage metrics to output file
+write_csv(metrics, alignment_coverage_metrics_file, na = "")
+
+# write amplicon coverage metrics output file
+amplicon_coverage %>%
+  select(ID, Sample, Amplicon, Reads, `Read pairs`, `Mean coverage`) %>%
+  write_csv(amplicon_coverage_metrics_file, na = "")
 

@@ -193,17 +193,20 @@ process collate_alignment_coverage_metrics {
         path pileup_counts
 
     output:
-        path alignment_coverage_metrics
+        path alignment_coverage_metrics, emit: alignment_coverage_metrics
+        path amplicon_coverage_metrics, emit: amplicon_coverage_metrics
 
     script:
         alignment_coverage_metrics = "alignment_coverage_metrics.csv"
+        amplicon_coverage_metrics = "amplicon_coverage_metrics.csv"
         """
         collate_alignment_coverage_metrics.R \
             --alignment-metrics ${alignment_metrics} \
             --targeted-pcr-metrics ${targeted_pcr_metrics} \
             --amplicon-coverage ${amplicon_coverage} \
             --pileup-counts ${pileup_counts} \
-            --output-metrics ${alignment_coverage_metrics}
+            --alignment-coverage-metrics ${alignment_coverage_metrics} \
+            --amplicon-coverage-metrics ${amplicon_coverage_metrics}
         """
 }
 
@@ -557,7 +560,6 @@ workflow {
     // collect amplicon coverage data for all samples
     amplicon_coverage = extract_amplicon_regions.out.coverage
         .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
-
     // alignment coverage report
     // alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
 
@@ -585,14 +587,14 @@ workflow {
 
     // create coverage plots including on/off target/amplicon yield stacked bar plot
     // and amplicon coverage box plot
-    create_coverage_plots(collate_alignment_coverage_metrics.out, amplicon_coverage)
+    create_coverage_plots(collate_alignment_coverage_metrics.out.alignment_coverage_metrics, amplicon_coverage)
 
     // assess sample replicates based on correlation of SNV allele fractions
     assess_replicate_vaf(samples, collected_pileup_counts)
 
     // create QC report
     create_qc_report(
-        collate_alignment_coverage_metrics.out,
+        collate_alignment_coverage_metrics.out.alignment_coverage_metrics,
         create_coverage_plots.out.yield_plot,
         create_coverage_plots.out.amplicon_coverage_plot,
         assess_replicate_vaf.out.vaf_heatmap,
