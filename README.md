@@ -327,7 +327,39 @@ The ampliconseq pipeline has a number of configuration parameters. Use the
 
     nextflow run crukci-bioinformatics/ampliconseq --help
 
-These can be set either as command-line options or using a configuration file.
+
+The following parameters can be configured. These can be set either as 
+[command line options](#configuration_using_command_line_args) or using a
+[configuration file](#configuration_file).
+
+
+parameter                                | default value   | description
+-----------------------------------------|-----------------|-----------------------------------------
+samples                                  | samples.csv     | CSV or TSV file giving the sample name and BAM file for each library (ID and Sample columns required, optional BAM column)
+bamDir                                   |                 | (Optional) directory in which BAM files are located; paths to BAM files specified in the sample sheet are relative to this directory or to the launch directory if this parameter is not specified
+amplicons                                | amplicons.csv   | CSV/TSV file containing amplicon coordinates (ID, Chromosome, AmpliconStart, AmpliconEnd, TargetStart, TargetEnd columns required)
+specificVariants                         |                 | CSV/TSV file containing specific (or known) variants that are included in the summary regardless of whether these are called or not (Sample, Chromosome, Position, Ref, Alt columns required)
+blacklistedVariants                      |                 | CSV/TSV file containing blacklisted variants that will be filtered (Chromosome, Position, Ref, Alt columns required)
+referenceGenomeFasta                     | /reference_data/GRCh37.fa | FASTA file containing the reference genome sequence (must be indexed and have an accompanying sequence dictionary)
+vepAnnotation                            | false           | Annotate variants with Ensembl VEP
+vepCacheDir                              | vep_cache       | Directory in which Ensembl VEP cache files are installed
+vepSpecies                               | homo_sapiens    | The species name of the VEP annotation cache
+vepAssembly                              | GRCh37          | The genome assembly of the VEP annotation cache
+outputDir                                |                 | Directory to which output files are written
+variantCaller                            | VarDict         | The variant caller (VarDict or HaplotypeCaller)
+minimumAlleleFraction                    | 0.01            | Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
+maximumReadsPerAlignmentStart            | 2500            | Maximum number of reads to retain per alignment start position; reads above this threshold will be downsampled (specific to GATK HaplotypeCaller)
+minimumMappingQualityForPileup           | 1               | Minimum mapping quality of reads to include in the pileup, i.e. when computing depths and allele fractions
+minimumBaseQualityForPileup              | 10              | Minimum base quality at a given locus for reads to include in the pileup, i.e. when computing depths and allele fractions
+minimumDepthForBackgroundNoise           | 100             | Minimum depth of coverage at a given locus for a library to be included when computing background noise
+excludeHighestFractionForBackgroundNoise | 0.1             | Fraction of measurements with the highest allele fraction to exclude from fitting a distribution to the background noise (assumes these are not due to error/noise)
+maximumAlleleFractionForBackgroundNoise  | 0.03            | Maximum allele fraction to include in fitting a distribution to the background noise (assumes anything above this is not due to error/noise)
+minimumNumberForFittingBackgroundNoise   | 10              | Minimum number of libraries required to fit a background noise distribution
+chunkSizeForFittingBackgroundNoise       | 500000          | Maximum number of pileup count rows to process in a chunk when fitting background noise distributions
+readChunkSizeForFittingBackgroundNoise   | 100000          | Chunk size for reading pileup count records prior to chunking for fitting background noise distributions
+sequenceContextLength                    | 5               | The length of the sequence context bordering the variant on the 5' and 3' ends to be included in the output table
+minimumDepthForHighConfidenceCalls       | 100             | Minimum depth for high-confidence variant calls
+jvmOverhead                              | 192             | The memory overhead to allow for the Java Virtual Machine in addition to the memory specified for each Java process
 
 #### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
 
