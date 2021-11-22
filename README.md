@@ -17,7 +17,9 @@ Variant calling pipeline for amplicon sequencing data.
     * [Configuration parameters](#configuration_parameters)
         * [Command line arguments](#configuration_using_command_line_args)
         * [Configuration file](#configuration_file)
+* [Reference data](#reference_data)
     * [Reference genome sequence FASTA file](#reference_genome_fasta)
+    * [Ensembl Variant Effect Predictor (VEP) cache](#ensembl_vep_cache)
 * [Running ampliconseq](#running)
     * [Running with a container](#running_with_container)
     * [Execution profiles](#execution_profiles)
@@ -29,41 +31,44 @@ Variant calling pipeline for amplicon sequencing data.
 ## <a name="introduction">Introduction</a>
 
 *ampliconseq* is an analysis pipeline for calling single nucleotide variants
-(SNVs) and indels in tagged amplicon sequencing data. Variants are called using
-[GATK HaplotypeCaller](https://gatk.broadinstitute.org), preferred for germline
-or clonal somatic mutations especially in FFPE samples, or
+(SNVs) and indels in targeted amplicon sequencing data. Variants are called
+using [GATK HaplotypeCaller](https://gatk.broadinstitute.org), preferred for
+germline or clonal somatic mutations, especially in FFPE samples, or
 [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava) which can identify low
-allele fraction (AF) SNVs in circulating tumour DNA in plasma samples. In
-addition to caller-specific filters, the pipeline models the background
-substitution noise at each amplicon position to identify and filter erroneous
-SNV calls. Alignment and target coverage metrics are computed and compiled into
-a QC report. Variants are annotated using
+allele fraction SNVs in circulating tumour DNA from plasma samples. In addition
+to caller-specific filters, the pipeline models the background substitution
+noise at each amplicon position to identify and filter SNV calls with very low
+allele fractions that are not distinguishable from noise. Alignment and target
+coverage metrics are computed and compiled into a QC report. Variants are
+annotated using
 [Ensembl Variant Effect Predictor](https://www.ensembl.org/info/docs/tools/vep/index.html)
 (VEP).
 
-The ampliconseq pipeline is run using the [Nextflow](https://www.nextflow.io)
-scientic workflow system and all dependencies and tools are packaged in a
-[Docker](https://www.docker.com) container that can be run either using Docker
-or [Singularity](https://sylabs.io/docs). The inputs to the pipeline are BAM
-files containing aligned sequence reads.
+The ampliconseq pipeline is executed using the
+[Nextflow](https://www.nextflow.io) scientic workflow system and all
+dependencies and tools are packaged in a [Docker](https://www.docker.com)
+container that can be run either using Docker or
+[Singularity](https://sylabs.io/docs). The inputs to the pipeline are BAM files
+containing sequence reads aligned to the reference genome.
 
 The ampliconseq pipeline has the following features:
 
 * Choice of variant callers: [GATK HaplotypeCaller](https://gatk.broadinstitute.org) and [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava)
-* Alignment and coverage QC report using metrics calculated by [Picard](https://broadinstitute.github.io/picard)
-* Annotation of variants using [Ensembl Variant Effect Predictor](https://www.ensembl.org/info/docs/tools/vep/index.html)
+* Alignment and coverage QC report using metrics calculated by [Picard](https://broadinstitute.github.io/picard) CollectAlignmentSummaryMetrics and CollectTargetedPcrMetrics
+* Annotation of variants using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)
 * Support for overlapping amplicon targets by partitioning reads prior to variant calling
 * Support for calling and filtering low allele fraction SNVs, e.g. for circulating tumour DNA in plasma samples with allele fractions down to 0.1%, by fitting probability distributions to model background noise
 * *Specific calling* of known mutations
-* Combines variant call outputs for replicate amplicon libraries from the same sample and assigns confidence levels based on whether calls are made or filtered in each of the replicates
+* Assignment of confidence level based on whether a variant is called or filtered in each of a set of replicate libraries (usually duplicate libraries)
 * Minimal barrier to installation with the only requirements being a Java runtime, [Nextflow](https://www.nextflow.io), and either [Docker](https://www.docker.com) or [Singularity](https://sylabs.io/docs) to run a container in which all other dependencies and tools are packaged
-* Simple installation, only Java, Nextflow and either Docker or Singularity required
-* Scale easily from deployment on multi-core workstation to high-performance compute cluster or cloud with simple configuration change
+* Scales easily from deployment on multi-core workstation to high-performance compute cluster or cloud with only a simple configuration change
 * Accompanying visualization tool for viewing and assessing SNV calls
 
 The ampliconseq pipeline was developed by the
 [Bioinformatics Core](https://www.cruk.cam.ac.uk/core-facilities/bioinformatics-core)
-in collaboration with James Brenton's research group at the
+in collaboration with
+[James Brenton's research group](https://www.cruk.cam.ac.uk/research-groups/brenton-group)
+at the
 [Cancer Research UK Cambridge Institute](https://www.cruk.cam.ac.uk) (CRUK CI).
 
 ---
@@ -396,6 +401,11 @@ the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
 [`nextflow.config`](nextflow.config) contains the default settings that are
 overridden by the configuration file specified with the `-config` option when
 running the pipeline.
+
+## <a name="reference_data">Reference data</a>
+
+The pipeline requires a reference genome FASTA file and, optionally, an
+annotation database or cache for Ensembl Variant Effect Predictor (VEP).
 
 ### <a name="reference_genome_fasta">Reference genome sequence FASTA file</a>
 
