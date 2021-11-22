@@ -80,10 +80,10 @@ at the
         curl -s https://get.nextflow.io | bash
 
     This creates a file named `nextflow` in the current directory. For
-    convenience, move this to some location on your `PATH`. For more details on
-    installing Nextflow, see the
-    [Nextflow documentation](https://www.nextflow.io).
-
+    convenience, move this to some location on your `PATH`. See the
+    [Nextflow documentation](https://www.nextflow.io) for more details on
+    installing Nextflow.
+    
 2. Download Ensembl VEP cache.
 
     This step can be skipped if the VEP cache for the relevant species and genome
@@ -101,16 +101,16 @@ assembly is already installed or if variant annotation is not required.
 single step workflow for downloading the VEP cache (`download_vep_cache.nf`).
 It will also download the Docker container in which Ensembl VEP is installed
 from [Docker Hub](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
-from which a Singularity container is built. Use `-with-docker` to use Docker
+and from this build a Singularity container. Use `-with-docker` to use Docker
 instead of Singularity.
 
     Substitute the top-level VEP cache directory as required; note that this
-directory must exist.
+step will fail if the directory doesn't already exist.
 
-    The Ensembl VEP cache is quite large (around 15G for homo sapiens) and the
-download and unpacking carried out in this step can take several minutes.
+    The VEP cache can be quite large (around 15G for homo sapiens) and
+downloading and unpacking the cache may take several minutes.
 
-3. Create a samples file (`samples.txt`) containing library and sample identifiers.
+3. Create a samples file (`samples.txt`) containing the sample identifier and BAM file for each library.
 
 4. Create an amplicon coordinates file (`amplicons.csv`).
 
@@ -118,13 +118,12 @@ download and unpacking carried out in this step can take several minutes.
 
 6. Run the ampliconseq pipeline specifying the configuration file and execution profile.
 
-        nextflow \
-            run crukci-bioinformatics/ampliconseq \
+        nextflow run crukci-bioinformatics/ampliconseq \
             -config ampliconseq.config \
             -with-singularity \
             -profile bigserver \
-            -with-report logs/ampliconseq_report.html \
-            -with-timeline logs/ampliconseq_timeline.html
+            -with-report ampliconseq_report.html \
+            -with-timeline ampliconseq_timeline.html
 
 ---
 
@@ -132,22 +131,22 @@ download and unpacking carried out in this step can take several minutes.
 
 The ampliconseq pipeline is downloaded and run using the Nextflow workflow
 system. Dependencies, including GATK, VarDict, Picard, Ensembl Variant Effect
-Predictor, R and various R packages are packaged as a
+Predictor, R and various R packages, are packaged as a
 [Docker container](https://hub.docker.com/r/crukcibioinformatics/ampliconseq)
 that can be run with either [Docker](https://www.docker.com) or
 [Singularity](https://sylabs.io/docs). The container is also downloaded by
 Nextflow. The only requirements are a recent version of Nextflow and either
 Docker or Singularity. Nextflow requires Java 8 or above and can be installed as
-shown in the Quickstart section above. See the
+shown in the Quickstart section above (see the
 [Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
-more details.
+more details).
 
 ### <a name="install_specific_release">Installing a specific release of ampliconseq</a>
 
 Using the latest stable
 [release](https://github.com/crukci-bioinformatics/ampliconseq/releases)
 of ampliconseq is recommended. A specific version of ampliconseq can be
-installed using `nextflow pull` as follows using the `-r` or `-revision` option:
+installed using `nextflow pull` with the `-revision` (or `-r`) option:
 
     nextflow pull crukci-bioinformatics/ampliconseq -r 1.0.0
 
@@ -165,7 +164,7 @@ Run `nextflow info` to view details about the currently installed version.
 The latest snapshot of ampliconseq will be downloaded and run if no revision is
 specified using the `-r` or `-revision` command line option when running
 ampliconseq for the first time. Subsequent runs will use this snapshot version
-but Nextflow detects if there have been revisions to the pipeline since then and
+but Nextflow detects if there have been revisions to the pipeline since and
 displays a message such as the following:
 
     NOTE: Your local project version looks outdated - a different revision is available in the remote repository [961d1d72a2]
@@ -199,9 +198,9 @@ and packages:
     * svglite
     * rsvg
     * ComplexHeatmap (from Bioconductor)
-* GATK 4.2.0.0 or above
-* VarDict (Java version)
-* Ensembl Variant Effect Predictor
+* GATK 4.2.0.0 or above (includes the Picard tools used to calculate various metrics)
+* VarDict (Java version) 1.8.2 or above
+* Ensembl Variant Effect Predictor release 104 or later
 
 These can be installed manually or, more straightforwardly, using Conda. The
 pipeline assumes that the executables, `R`, `gatk`, `vardict-java` and `vep`,
@@ -252,18 +251,20 @@ Column  | Required | Description
 --------|----------|------------
 ID      | yes      | The library identifier or barcode
 Sample  | yes      | The name or identifier of the sample from which the library was created
-BAM     | no       | The BAM file name or path (can be a relative or absolute path)
+BAM     | no       | The BAM file name (where the directory can be specified as a configuration parameter) or path (can be a relative or absolute path)
 
 Replicate libraries created from the same sample will share the same `Sample`
-name. The pipeline creates a variant call summary table in which variants called
-within replicates of the same sample are gathered and reported together with an
-assigned confidence level. The QC report clusters libraries based on variant
-allele fractions and identifies possible sample library mispairings where
-replicate libraries are quite dissimilar to each other but more similar to other
-libraries in the run.
+name or identifier. This sample-based grouping of libraries is used in the
+pipeline when creating the variant call summary table, in which variants called
+within replicates of the same sample are gathered and reported together with a
+confidence level. Is is also used when identifying possible sample library
+mispairings as part of the QC report; libraries are clustered based on variant
+allele fractions and replicate libraries from the same sample are expected to
+cluster together.
 
 An example sample sheet containing duplicate libraries for each of two samples
-is given below (note that a single run can contain hundreds of libraries).
+is given below. This is a small snippet of a sample sheet; runs typically
+contain tens or hundreds of libraries.
 
 ```
 ID                  Sample        BAM
@@ -280,7 +281,7 @@ library in the example sample sheet given above. There is a `bamDir`
 configuration parameter that can be set in order to avoid having to specify the
 full path for each BAM file in the sample sheet; it is prepended to the BAM file
 name given in the sample sheet or to the default file name based on the ID if
-the sample sheet does not contain the BAM column.
+the sample sheet does not contain a BAM column.
 
 ### <a name="amplicon_coordinates_file">Amplicon coordinates file</a>
 
@@ -343,7 +344,7 @@ the sequence data were aligned, can be specified using the
 The following example specifies the sample sheet and amplicon coordinates file,
 and instructs the pipeline to annotate variants using Ensembl VEP for the given
 species and assembly. It also specifies the variant caller to use (VarDict) and
-the minimum allele fraction of variants to be called.
+the minimum allele fraction of variants that it can attempt to identify.
 
     nextflow run crukci-bioinformatics/ampliconseq \
         --samples samples.txt \
@@ -357,8 +358,8 @@ the minimum allele fraction of variants to be called.
         --minimumAlleleFraction 0.01
 
 The default parameter settings can be found in the
-[`nextflow.config`](nextflow.config) file in the
-[GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
+[`nextflow.config`](nextflow.config) file that is installed as part of the
+pipeline.
 
 #### <a name="configuration_file">Configuration file</a>
 
@@ -388,9 +389,9 @@ params {
 
 This takes the form of a `name = value` syntax with a separate line for each
 parameter within curly braces bounding a `params` block. Note that file names
-and paths and other character or string values need to be quoted while numeric
-values do not, and boolean parameters such as `vepAnnotation` can be set to
-`true` or `false`.
+and paths and other character or string values need to be in quotation marks
+while numeric values do not, and boolean parameters such as `vepAnnotation` can
+be set to `true` or `false`.
 
 See the [Nextflow documentation](https://www.nextflow.io/docs/latest) for more
 details about the configuration syntax.
@@ -398,9 +399,9 @@ details about the configuration syntax.
 The configuration file will normally contain a subset of the parameters
 specified in the [`nextflow.config`](nextflow.config) found at the top level of
 the [GitHub repository](https://github.com/crukci-bioinformatics/ampliconseq).
-[`nextflow.config`](nextflow.config) contains the default settings that are
-overridden by the configuration file specified with the `-config` option when
-running the pipeline.
+[`nextflow.config`](nextflow.config) contains the default settings, some or all
+of which are overridden by the configuration file specified with the `-config`
+option when running the pipeline.
 
 ## <a name="reference_data">Reference data</a>
 
@@ -409,16 +410,17 @@ annotation database or cache for Ensembl Variant Effect Predictor (VEP).
 
 ### <a name="reference_genome_fasta">Reference genome sequence FASTA file</a>
 
-The reference genome FASTA file using in aligning the sequence data to generate
-the BAM files, the primary input to the pipeline, needs to be specified using
-with the `referenceGenomeFasta` parameter. This FASTA file needs to be indexed,
+The primary inputs to the pipeline are BAM files containing alignments for
+sequence reads mapped to a reference genome. The reference genome sequence FASTA
+file used in the alignment process must be specified using the
+`referenceGenomeFasta` parameter. This FASTA file needs to be indexed,
 e.g. using `samtools faidx`, and have an accompanying sequence dictionary that
 can be created with `samtools dict` or the GATK/Picard CreateSequenceDictionary
 tool.
 
 ### <a name="ensembl_vep_cache">Ensembl Variant Effect Predictor (VEP) cache</a>
 
-The pipeline can annotate variants using Ensembl VEP. It runs VEP in offline
+The pipeline can annotate variants using Ensembl VEP. It runs VEP in an offline
 mode using a pre-downloaded annotation cache. The cache for a particular species
 and genome assembly can be downloaded using a single step supplementary workflow
 (`download_vep_cache`) as shown below:
@@ -430,16 +432,17 @@ and genome assembly can be downloaded using a single step supplementary workflow
         --vepSpecies homo_sapiens \
         --vepAssembly GRCh37
 
-This assumes use of VEP installed in the container and run using Singularity.
-Use `-with-docker` to use Docker instead of Singularity or remove the
-`-with-singularity` argument if not using a container (the `vep_install`
-installed with VEP will need to be available on the `PATH`).
+The `-with-singularity` argument indicates that VEP will be run in a container
+using Singularity. Use `-with-docker` to use Docker instead of Singularity or
+remove the `-with-singularity` argument if not using a container, in which case
+the `vep_install` tool that is installed with VEP will need to be available on
+the `PATH`.
 
-Substitute the top-level VEP cache directory as required; note that this
-directory must already exist.
+Substitute the top-level VEP cache directory as required; note that the download
+will fail if the directory doesn't already exist.
 
-The Ensembl VEP cache is quite large (around 15G for homo sapiens) and the
-download and unpacking carried out in this step can take several minutes.
+The VEP cache can be quite large (around 15G for homo sapiens) and downloading
+and unpacking the cache may take several minutes.
 
 ## <a name="running">Running ampliconseq</a>
 
