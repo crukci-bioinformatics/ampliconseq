@@ -449,7 +449,7 @@ and unpacking the cache may take several minutes.
 ### <a name="running_with_container">Running the pipeline using a container</a>
 
 The most straightforward way to run the ampliconseq pipeline is to use the
-pre-packaged container either using Docker or Singularity by specifying the
+pre-packaged container with either Docker or Singularity by specifying the
 `-with-docker` or `-with-singularity` flag.
 
     nextflow run crukci-bioinformatics/ampliconseq -with-docker
@@ -457,9 +457,9 @@ pre-packaged container either using Docker or Singularity by specifying the
     nextflow run crukci-bioinformatics/ampliconseq -with-singularity
 
 Nextflow will automatically fetch the container from
-[Docker Hub](https://hub.docker.com/r/crukcibioinformatics/ampliconseq) and,
-if using Singularity, will build the Singularity image from the Docker
-container. Singularity is more likely than Docker to be available on
+[Docker Hub](https://hub.docker.com/r/crukcibioinformatics/ampliconseq) and will
+build the Singularity image from the Docker container when running with
+Singularity. Singularity is more likely than Docker to be available on
 high-performance cluster computing platforms.
 
 When using Singularity, the pipeline assumes that the user bind control feature
@@ -473,7 +473,7 @@ configuration file by adding the following line:
 
     docker.enabled = true
 
-Similarly, to enable Singularity, instead add the following line:
+Similarly, to enable Singularity, instead add the following:
 
     singularity.enabled = true
 
@@ -484,36 +484,60 @@ These can also be added as part of an execution profile (see next section).
 Resource settings are configured using Nextflow profiles. The ampliconseq
 pipeline provides three profiles - `standard`, `bigserver` and `cluster`
 configured for running on servers and the high-performance compute cluster at
-CRUK CI. These specifythe maximum number of CPUs or memory that can be used at
+CRUK CI. These specify the maximum number of CPUs or memory that can be used at
 any one time during the pipeline run or the maximum number of jobs that can be
 submitted to the cluster to be run in parallel.
 
 A custom profile can be created in the configuration file, e.g.
 `ampliconseq.config`, an example of which is shown below.
 
-    myprofile {
-        process {
-            executor = 'slurm'
-            queue = 'long'
+    profiles {
+        myprofile {
+            process.executor = 'local'
+            executor {
+                cpus = 8
+                memory = 32.GB
+            }
+            singularity.enabled = true
         }
-        executor {
-            queueSize = 25
-            pollInterval = 30.sec
-            jobName = { "'$task.name'" }
-        }
-        singularity.enabled = true
     }
 
-This profile can be specified using the `-profile` command line option.
+The new profile, `myserver`, allows for up to 8 CPUs to be used at any one time
+and a total of 32G of memory. The pipeline specifies how many CPU cores and how
+much memory each process requires and Nextflow ensures that the overall resource
+allocation does not exceed that specified in the profile.
+
+The *local* executor (the default) runs processes on the computer on which
+Nextflow is launched. The processes are parallelized by spawning multiple
+threads and taking advantage of the multi-core architecture provided by the CPU.
+
+Setting `singularity.enabled = true` in the profile tells Nextflow to use the
+container with Singularity; it is not necessary to specify this separately with
+the `-with-singularity` option.
+
+This profile can be selected by using the `-profile` command line option.
 
     nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config -profile myprofile
 
-With this profile, Nextflow will submit jobs to cluster nodes using the SLURM
-resource manager. A maximum number of 25 jobs that will be submitted to the
-'long' queue for running in parallel and Nextflow will poll every 30 seconds
-to check for completed jobs. Use of Singularity for running jobs using the
-container is enabled so it is not necessary to specify this separately with the
-`-with-singularity` option.
+The following profile tells Nextflow to submit jobs to nodes on a compute
+cluster using the Slurm resource manager. It allows for a maximum of 25 jobs to
+be submitted to the 'long' queue for running in parallel and tells Nextflow to
+poll every 30 seconds to check for completed jobs.
+
+    profiles {
+        mycluster {
+            process {
+                executor = 'slurm'
+                queue = 'long'
+            }
+            executor {
+                queueSize = 25
+                pollInterval = 30.sec
+                jobName = { "'$task.name'" }
+            }
+            singularity.enabled = true
+        }
+    }
 
 ### <a name="nextflow_reports">Nextflow reports</a>
 
@@ -531,21 +555,22 @@ these reports, e.g.
 ### <a name="nextflow_log_files_and_work_directories">Nextflow log files and work directories</a>
 
 Nextflow logs information to a hidden file named `.nextflow.log` in the launch
-directory in which ampliconseq is run. This can contain useful information that
-can help with debugging problems with running the pipeline. It will, for
-example, show which task(s) failed and the directory in which that task was run.
-An alternative log file name can be specified using the `-log` command line
-argument (run `nextflow help` for more details on Nextflow command line options).
+directory in which ampliconseq is run. This contains logging information that
+can help with debugging problems with a pipeline run. It will, for example, show
+which task(s) failed and the directory in which that task was run. An
+alternative log file name can be specified using the `-log` command line
+argument. Run `nextflow help` for more details on Nextflow command line options.
 
 Nextflow runs each task within its own directory. These directories are created
-under a directory named `work`. Each task run directory contains hidden files
-with names such as `.command.sh` and `.command.out`, which can be helpful in
-debugging Nextflow pipelines.
+under a work directory, by default a subdirectory of the launch directory named
+`work` but which is configurable with the `-work-dir` command line option. Each
+task directory contains hidden files with names such as `.command.sh` and
+`.command.out`, inspection of which can be helpful when debugging pipeline runs.
 
-The work directories contain intermediate files produced when running
-ampliconseq. The final outputs are written either to the launch directory or the
+Intermediate files created during a pipeline execution are written to the work
+directories. The final outputs are written either to the launch directory or the
 directory specified using the `--outputDir` command line option or the
-`outputDir` parameter. The `work` directory can be deleted on successful
-completion of the ampliconseq pipeline unless other Nextflow pipelines are also
-being run from the launch directory.
+`outputDir` parameter. The `work` directory (and all its subdirectories) can be
+deleted on successful completion of the pipeline unless other Nextflow pipeline
+runs are also making use of the same top-level work directory.
 
