@@ -342,7 +342,7 @@ specificVariants                         |                 | CSV/TSV file contai
 blacklistedVariants                      |                 | CSV/TSV file containing blacklisted variants that will be filtered (Chromosome, Position, Ref, Alt columns required)
 referenceGenomeFasta                     | /reference_data/GRCh37.fa | FASTA file containing the reference genome sequence (must be indexed and have an accompanying sequence dictionary)
 vepAnnotation                            | false           | Annotate variants with Ensembl VEP
-vepCacheDir                              | vep_cache       | Directory in which Ensembl VEP cache files are installed
+vepCacheDir                              | /reference_data/vep_cache | Directory in which Ensembl VEP cache files are installed
 vepSpecies                               | homo_sapiens    | The species name of the VEP annotation cache
 vepAssembly                              | GRCh37          | The genome assembly of the VEP annotation cache
 outputDir                                |                 | Directory to which output files are written
