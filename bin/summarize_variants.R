@@ -49,7 +49,7 @@ output_prefix <- opt$output_prefix
 minimum_depth <- opt$minimum_depth
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
-if (is.null(blacklist_file)) stop("Input variant file must be specified")
+if (is.null(blacklist_file)) stop("Blacklisted variants file must be specified")
 #if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
