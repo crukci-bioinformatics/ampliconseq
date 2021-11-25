@@ -383,7 +383,7 @@ the minimum allele fraction of variants that it can attempt to identify.
         --amplicons /data/reference_data/ampliconseq/tp53_panel/amplicons.csv \
         --referenceGenomeFasta /data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa \
         --vepAnnotation \
-        --vepCacheDir vep_cache \
+        --vepCacheDir /data/reference_data/vep_cache \
         --vepSpecies homo_sapiens \
         --vepAssembly GRCh37 \
         --variantCaller vardict \
@@ -411,6 +411,7 @@ params {
     amplicons             = "/data/reference_data/ampliconseq/tp53_panel/amplicons.csv"
     referenceGenomeFasta  = "/data/reference_data/reference_genomes/homo_sapiens/GRCh37/fasta/GRCh37.fa"
     vepAnnotation         = true
+    vepCacheDir           = "/data/reference_data/vep_cache"
     vepSpecies            = "homo_sapiens"
     vepAssembly           = "GRCh37"
     outputDir             = "results"
