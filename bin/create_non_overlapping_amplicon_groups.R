@@ -22,7 +22,13 @@ option_list <- list(
               help = "Index file for the reference genome sequence (expected to have .fai extension)"),
 
   make_option(c("--output"), dest = "amplicon_groups_file",
-              help = "Output sample sheet file in the format required for subsequent pipeline processes")
+              help = "Amplicon coordinates file annotated with assigned non-overlapping group numbers"),
+
+  make_option(c("--amplicon-bed-prefix"), dest = "amplicon_bed_prefix",
+              help = "Prefix for amplicon BED files for each group"),
+
+  make_option(c("--target-bed-prefix"), dest = "target_bed_prefix",
+              help = "Prefix for target BED files for each group")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -31,10 +37,14 @@ opt <- parse_args(option_parser)
 amplicons_file <- opt$amplicons_file
 reference_sequence_index_file <- opt$reference_sequence_index_file
 amplicon_groups_file <- opt$amplicon_groups_file
+amplicon_bed_prefix <- opt$amplicon_bed_prefix
+target_bed_prefix <- opt$target_bed_prefix
 
 if (is.null(amplicons_file)) stop("Amplicon details file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(amplicon_groups_file)) stop("Output amplicon groups file must be specified")
+if (is.null(amplicon_bed_prefix)) stop("Amplicon BED file prefix must be specified")
+if (is.null(target_bed_prefix)) stop("Target BED file prefix must be specified")
 
 suppressPackageStartupMessages(library(tidyverse))
 
@@ -165,4 +175,15 @@ message("Number of non-overlapping interval groups: ", number_of_groups)
 amplicons <- left_join(amplicons, groups, by = "ID")
 
 write_tsv(amplicons, amplicon_groups_file)
+
+for (group in seq(number_of_groups)) {
+    amplicons %>%
+        filter(Group == group) %>%
+        transmute(Chromosome, Start = AmpliconStart - 1, AmpliconEnd, ID) %>%
+        write_tsv(str_c(amplicon_bed_prefix, group, "bed", sep = "."), col_names = FALSE)
+    amplicons %>%
+        filter(Group == group) %>%
+        transmute(Chromosome, Start = TargetStart - 1, TargetEnd, ID) %>%
+        write_tsv(str_c(target_bed_prefix, group, "bed", sep = "."), col_names = FALSE)
+}
 

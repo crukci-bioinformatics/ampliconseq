@@ -12,7 +12,6 @@ gatk --java-options "-Xmx!{java_mem}m" CollectAlignmentSummaryMetrics \
 
 extract_picard_metrics.R \
     --id "!{id}" \
-    --sample "!{sample}" \
     --metrics alignment_metrics.txt \
     --output "!{alignment_metrics}"
 
@@ -44,7 +43,6 @@ gatk --java-options "-Xmx!{java_mem}m" CollectTargetedPcrMetrics \
 
 extract_picard_metrics.R \
     --id "!{id}" \
-    --sample "!{sample}" \
     --metrics targeted_pcr_metrics.txt \
     --output "!{targeted_pcr_metrics}"
 

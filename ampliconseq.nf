@@ -53,15 +53,23 @@ process create_non_overlapping_amplicon_groups {
         path reference_sequence_index
 
     output:
-        path amplicon_groups
+        path amplicon_groups, emit: amplicon_groups
+        path amplicon_bed_files, emit: amplicon_bed_files
+        path target_bed_files, emit: target_bed_files
 
     script:
         amplicon_groups = "amplicon_groups.txt"
+        amplicon_bed_prefix = "amplicons"
+        amplicon_bed_files = "${amplicon_bed_prefix}.*.bed"
+        target_bed_prefix = "targets"
+        target_bed_files = "${target_bed_prefix}.*.bed"
         """
         create_non_overlapping_amplicon_groups.R \
             --amplicons ${amplicon_details} \
             --reference-sequence-index ${reference_sequence_index} \
-            --output ${amplicon_groups}
+            --output ${amplicon_groups} \
+            --amplicon-bed-prefix ${amplicon_bed_prefix} \
+            --target-bed-prefix ${target_bed_prefix}
         """
 }
 
@@ -99,7 +107,7 @@ process picard_metrics {
     maxRetries 2
 
     input:
-        tuple val(id), val(sample), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(id), val(prefix), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
         path alignment_metrics, emit: alignment_metrics
@@ -107,8 +115,8 @@ process picard_metrics {
 
     shell:
         java_mem = javaMemMB(task)
-        alignment_metrics = "${id}.alignment_metrics.txt"
-        targeted_pcr_metrics = "${id}.targeted_pcr_metrics.txt"
+        alignment_metrics = "${prefix}.alignment_metrics.txt"
+        targeted_pcr_metrics = "${prefix}.targeted_pcr_metrics.txt"
         template "picard_metrics.sh"
 }
 
@@ -123,40 +131,59 @@ process extract_amplicon_regions {
     maxRetries 2
 
     input:
-        tuple val(id), val(sample), path(bam), path(amplicon_groups)
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(bam)
 
     output:
-        tuple val(id), val(sample), path("${id}.*.bam"), path("${id}.*.bai"), path(amplicon_groups), emit: bam
-        path amplicon_coverage, emit: coverage
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), emit: bam
+        path(amplicon_coverage), emit: coverage
 
     shell:
         java_mem = javaMemMB(task)
-        amplicon_coverage = "${id}.amplicon_coverage.txt"
+        amplicon_bam = "${prefix}.${amplicon_group}.bam"
+        amplicon_bai = "${prefix}.${amplicon_group}.bai"
+        amplicon_coverage = "${prefix}.${amplicon_group}.amplicon_coverage.txt"
         template "extract_amplicon_regions.sh"
 }
 
 
-// call variants
+// call variants and annotate with amplicon id
 process call_variants {
     tag "${id}"
-    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${id}.vcf"
 
     memory { 4.GB * task.attempt }
     time { 8.hour * task.attempt }
     maxRetries 2
 
     input:
-        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path vcf, emit: vcf
+        tuple val(id), val(prefix), path(vcf), emit: vcf
+
+    shell:
+        java_mem = javaMemMB(task)
+        vcf = "${prefix}.${amplicon_group}.vcf"
+        template "call_variants.sh"
+}
+
+
+// merge amplicon group VCF files for each library and convert to tabular format
+process collate_variants {
+    // executor "local"
+    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${prefix}.vcf"
+
+    input:
+        tuple val(id), val(prefix), path(amplicon_vcfs), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+
+    output:
+        tuple val(id), path(vcf), emit: vcf
         path variants, emit: variants
 
     shell:
         java_mem = javaMemMB(task)
-        vcf = "${id}.vcf"
-        variants = "${id}.variants.txt"
-        template "call_variants.sh"
+        vcf = "${prefix}.vcf"
+        variants = "${prefix}.variants.txt"
+        template "collate_variants.sh"
 }
 
 
@@ -169,24 +196,51 @@ process pileup_counts {
     maxRetries 2
 
     input:
-        tuple val(id), val(sample), path(bam), path(bai), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path pileup
+        tuple val(id), val(prefix), path(pileup_counts)
 
     shell:
         java_mem = javaMemMB(task)
-        pileup = "${id}.pileup_counts.txt"
+        pileup_counts = "${prefix}.${amplicon_group}.pileup_counts.txt"
         template "pileup_counts.sh"
+}
+
+
+// annotate and sort pileup counts
+process annotate_and_sort_pileup_counts {
+    // executor "local"
+
+    input:
+        tuple path(pileup_counts), path(samples), path(amplicons)
+
+    output:
+        path annotated_and_sorted_pileup_counts
+
+    script:
+        prefix = pileup_counts.getBaseName()
+        annotated_and_sorted_pileup_counts = "${prefix}.annotated_and_sorted.txt"
+        """
+        annotate_and_sort_pileup_counts.R \
+            --pileup-counts ${pileup_counts} \
+            --samples ${samples} \
+            --amplicons ${amplicons} \
+            --output "${annotated_and_sorted_pileup_counts}" \
+        """
 }
 
 
 // collate alignment and amplicon/target coverage metrics
 process collate_alignment_coverage_metrics {
     executor "local"
-    publishDir "${params.outputDir}", mode: "copy"
+    publishDir "${params.outputDir}", mode: "copy", pattern: "${alignment_coverage_metrics}"
+    publishDir "${params.outputDir}", mode: "copy", pattern: "${amplicon_coverage_metrics}"
+    publishDir "${params.outputDir}/qc", mode: "copy", pattern: "${sorted_amplicon_coverage}"
 
     input:
+        path samples
+        path amplicons
         path alignment_metrics
         path targeted_pcr_metrics
         path amplicon_coverage
@@ -194,18 +248,23 @@ process collate_alignment_coverage_metrics {
 
     output:
         path alignment_coverage_metrics, emit: alignment_coverage_metrics
-        path amplicon_coverage_metrics, emit: amplicon_coverage_metrics
+        path amplicon_coverage_metrics
+        path sorted_amplicon_coverage
 
     script:
         alignment_coverage_metrics = "alignment_coverage_metrics.csv"
         amplicon_coverage_metrics = "amplicon_coverage_metrics.csv"
+        sorted_amplicon_coverage = "amplicon_coverage_metrics.txt"
         """
         collate_alignment_coverage_metrics.R \
+            --samples ${samples} \
+            --amplicons ${amplicons} \
             --alignment-metrics ${alignment_metrics} \
             --targeted-pcr-metrics ${targeted_pcr_metrics} \
             --amplicon-coverage ${amplicon_coverage} \
             --pileup-counts ${pileup_counts} \
             --alignment-coverage-metrics ${alignment_coverage_metrics} \
+            --sorted-amplicon-coverage ${sorted_amplicon_coverage} \
             --amplicon-coverage-metrics ${amplicon_coverage_metrics}
         """
 }
@@ -527,10 +586,8 @@ workflow {
     vep_cache_dir = (params.vepAnnotation ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : Channel.empty())
 
     // create groups of non-overlapping amplicons
-    amplicon_groups = create_non_overlapping_amplicon_groups(
-        amplicon_details,
-        reference_sequence_index
-    )
+    create_non_overlapping_amplicon_groups(amplicon_details, reference_sequence_index)
+    amplicon_groups = create_non_overlapping_amplicon_groups.out.amplicon_groups
 
     // check sample sheet
     check_inputs(sample_sheet, specific_variants, blacklisted_variants, amplicon_groups)
@@ -540,12 +597,30 @@ workflow {
     blacklisted_variants = check_inputs.out.blacklisted_variants
 
     // BAM file channel created by reading the validated sample sheet
-    bam = samples
+    bams = samples
         .splitCsv(header: true, sep: "\t")
-        .map { row -> tuple("${row.ID}", "${row.Sample}", file(!params.bamDir ? "${row.BAM}" : "${params.bamDir}/${row.BAM}", checkIfExists: true)) }
+        .map { row -> tuple("${row.ID}", "${row.ID}".replaceFirst(/ /, "_"), file(!params.bamDir ? "${row.BAM}" : "${params.bamDir}/${row.BAM}", checkIfExists: true)) }
+
+    amplicon_bed_files = create_non_overlapping_amplicon_groups.out.amplicon_bed_files
+        .flatten()
+        .map { tuple((it =~ /.*\.(\d+)\.bed$/)[0][1], it) }
+
+    target_bed_files = create_non_overlapping_amplicon_groups.out.target_bed_files
+        .flatten()
+        .map { tuple((it =~ /.*\.(\d+)\.bed$/)[0][1], it) }
+
+    bed_files = amplicon_bed_files.join(target_bed_files)
+
+    extract_amplicon_regions(bed_files.combine(bams))
+
+    // collect amplicon coverage data for all samples
+    amplicon_coverage = extract_amplicon_regions.out.coverage
+        .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name })
+
+    amplicon_bams = extract_amplicon_regions.out.bam.combine(reference_sequence)
 
     // Picard alignment summary metrics
-    picard_metrics(bam.combine(amplicon_groups).combine(reference_sequence))
+    picard_metrics(bams.combine(amplicon_groups).combine(reference_sequence))
 
     // collect Picard metrics for all samples
     alignment_metrics = picard_metrics.out.alignment_metrics
@@ -553,32 +628,33 @@ workflow {
     targeted_pcr_metrics = picard_metrics.out.targeted_pcr_metrics
         .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
 
-    // extract reads matching amplicons into subset BAM files for
-    // each group of non-overlapping amplicons
-    extract_amplicon_regions(bam.combine(amplicon_groups))
+    // generate pileup counts
+    pileup_counts(amplicon_bams)
 
-    // collect amplicon coverage data for all samples
-    amplicon_coverage = extract_amplicon_regions.out.coverage
-        .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
-    // alignment coverage report
-    // alignment_coverage_report(samples, alignment_metrics, targeted_pcr_metrics, amplicon_coverage)
+    // collate pileup counts for each library
+    collected_pileup_counts = pileup_counts.out.collectFile(keepHeader: true) { item -> [ "${item[1]}.pileup_counts.txt", item[2] ] }
 
-    // call variants with VarDict
-    call_variants(extract_amplicon_regions.out.bam.combine(reference_sequence))
+    // annotate and sort pileup counts
+    annotate_and_sort_pileup_counts(collected_pileup_counts.combine(samples).combine(amplicon_groups))
+
+    // collect pileup counts for all libraries
+    collected_pileup_counts = annotate_and_sort_pileup_counts.out
+        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}")
+
+    // call variants
+    call_variants(amplicon_bams)
+
+    // merge amplicon group VCF files for each library and convert to tabular format
+    collate_variants(call_variants.out.groupTuple(by: [0, 1]).combine(reference_sequence))
 
     // collect variant calls for all samples
-    called_variants = call_variants.out.variants
+    called_variants = collate_variants.out.variants
         .collectFile(name: "variants.txt", keepHeader: true)
-
-    // generate pileup counts
-    pileup_counts(extract_amplicon_regions.out.bam.combine(reference_sequence))
-
-    // collect pileup counts for all samples
-    collected_pileup_counts = pileup_counts.out
-        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}")
 
     // collate alignment and target coverage metrics
     collate_alignment_coverage_metrics(
+        samples,
+        amplicon_groups,
         alignment_metrics,
         targeted_pcr_metrics,
         amplicon_coverage,
