@@ -474,28 +474,6 @@ process apply_background_noise_filters {
 }
 
 
-// apply filter for blacklisted variants
-process apply_blacklist_filter {
-    executor "local"
-
-    input:
-        path variants
-        path blacklisted_variants
-
-    output:
-        path filtered_variants
-
-    script:
-        filtered_variants = "variants_blacklist_filtered.txt"
-        """
-        apply_blacklist_filter.R \
-            --variants ${variants} \
-            --blacklist ${blacklisted_variants} \
-            --output ${filtered_variants}
-        """
-}
-
-
 // annotate variants using Ensembl VEP
 process variant_effect_predictor {
     input:
@@ -702,9 +680,6 @@ workflow {
         compute_background_noise_thresholds.out.position_noise_thresholds,
         compute_background_noise_thresholds.out.library_noise_thresholds
     )
-
-    // apply filter for blacklisted variants
-    // apply_blacklist_filter(apply_background_noise_filters.out, blacklisted_variants)
 
     // create variant summary
     summarize_variants(
