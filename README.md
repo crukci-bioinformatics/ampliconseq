@@ -484,9 +484,9 @@ The most straightforward way to run the ampliconseq pipeline is to use the
 pre-packaged container with either Docker or Singularity by specifying the
 `-with-docker` or `-with-singularity` flag.
 
-    nextflow run crukci-bioinformatics/ampliconseq -with-docker
+    nextflow run crukci-bioinformatics/ampliconseq -config ampliconseq.config -with-docker
 
-    nextflow run crukci-bioinformatics/ampliconseq -with-singularity
+    nextflow run crukci-bioinformatics/ampliconseq -config ampliconseq.config -with-singularity
 
 Nextflow will automatically fetch the container from
 [Docker Hub](https://hub.docker.com/r/crukcibioinformatics/ampliconseq) and will
@@ -549,7 +549,7 @@ the `-with-singularity` option.
 
 This profile can be selected by using the `-profile` command line option.
 
-    nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config -profile myprofile
+    nextflow run crukci-bioinformatics/ampliconseq -config ampliconseq.config -profile myprofile
 
 The following profile tells Nextflow to submit jobs to nodes on a compute
 cluster using the Slurm resource manager. It allows for a maximum of 25 jobs to
@@ -591,7 +591,11 @@ directory in which ampliconseq is run. This contains logging information that
 can help with debugging problems with a pipeline run. It will, for example, show
 which task(s) failed and the directory in which that task was run. An
 alternative log file name can be specified using the `-log` command line
-argument. Run `nextflow help` for more details on Nextflow command line options.
+argument.
+
+    nextflow -log ampliconseq.log run crukci-bioinformatics/ampliconseq -config ampliconseq.config
+
+`nextflow help` gives more details on command line options for Nextflow.
 
 Nextflow runs each task within its own directory. These directories are created
 under a work directory, by default a subdirectory of the launch directory named
