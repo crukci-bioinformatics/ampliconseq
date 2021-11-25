@@ -19,7 +19,7 @@ option_list <- list(
               help = "CSV/TSV file containing specific/known variants (Sample, Chromosome, Position, Ref and Alt columns required)"),
 
   make_option(c("--samples"), dest = "samples_file",
-              help = "CSV/TSV file containing sample identifiers (Sample column required)"),
+              help = "CSV/TSV file containing sample identifiers (ID and Sample columns required)"),
 
   make_option(c("--amplicons"), dest = "amplicons_file",
               help = "CSV/TSV file containing details of the amplicons (ID, Chromosome, TargetStart and TargetEnd columns required)"),
@@ -79,18 +79,8 @@ if (nrow(multiallelic_variants) > 0) {
 }
 
 # read sample sheet and check for unmatched sample identifiers
-if (str_ends(str_to_lower(samples_file), "\\.csv")) {
-  samples <- read_csv(samples_file, col_types = cols(.default = col_character()))
-} else {
-  samples <- read_tsv(samples_file, col_types = cols(.default = col_character()))
-}
-
-expected_columns <- c("Sample", "ID")
-missing_columns <- setdiff(expected_columns, colnames(samples))
-if (length(missing_columns) > 0) {
-  stop("missing columns found in ", samples_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
-}
-samples <- select(samples, all_of(expected_columns))
+samples <- read_tsv(samples_file, col_types = cols(.default = "c"))
+samples <- select(samples, ID, Sample)
 
 unmatched_samples <- variants %>%
   anti_join(samples, by = "Sample") %>%
