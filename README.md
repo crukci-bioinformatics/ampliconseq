@@ -345,6 +345,7 @@ vepAnnotation                            | false           | Annotate variants w
 vepCacheDir                              | /reference_data/vep_cache | Directory in which Ensembl VEP cache files are installed.
 vepSpecies                               | homo_sapiens    | The species name of the VEP annotation cache.
 vepAssembly                              | GRCh37          | The genome assembly of the VEP annotation cache.
+vepPickOneAnnotationPerVariant           | true            | Pick one annotation for each annotation using VEP --pick option.
 outputDir                                |                 | Directory to which output files are written or the launch directory if not specified.
 variantCaller                            | VarDict         | The variant caller (VarDict or HaplotypeCaller).
 minimumAlleleFraction                    | 0.01            | Lower allele fraction limit for detection of variants (for variant callers that provide this option only).
