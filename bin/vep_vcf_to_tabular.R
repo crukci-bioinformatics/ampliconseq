@@ -54,14 +54,13 @@ variants <- read_tsv(
   )
 )
 
-variants <- variants %>%
-  rename(Chromosome = `#CHROM`, Position = POS, id = ID, Ref = REF, Alt = ALT, quality = QUAL, filter = FILTER, info = INFO)
-
 vep_annotations <- variants %>%
-  transmute(variant_number = row_number(), Chromosome, Position, Ref, Alt, value = info) %>%
+  select(Chromosome = `#CHROM`, Position = POS, Ref = REF, Alt = ALT, value = INFO) %>%
   mutate(value = str_remove(value, "^CSQ=")) %>%
+  separate_rows(value, sep = ",") %>%
+  mutate(variant_annotation_number = row_number()) %>%
   separate_rows(value, sep = "\\|") %>%
-  group_by(variant_number) %>%
+  group_by(variant_annotation_number) %>%
   mutate(index = row_number()) %>%
   ungroup() %>%
   left_join(vep_annotation_types, by = "index") %>%
