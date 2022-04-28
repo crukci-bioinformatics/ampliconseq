@@ -480,12 +480,14 @@ process variant_effect_predictor {
         path variants
         path reference_sequence_index
         path vep_cache_dir
+        val one_annotation_per_variant
 
     output:
         path variant_annotations
 
     shell:
         variant_annotations = "vep_annotations.txt"
+        vep_pick_option = one_annotation_per_variant ? "--pick" : ""
         template "variant_effect_predictor.sh"
 }
 
@@ -528,7 +530,7 @@ process summarize_variants {
         output_prefix = "variants"
         variant_summary_csv = "${output_prefix}.csv"
         variant_summary_tsv = "${output_prefix}.txt"
-        def vep_annotations_option = vep_annotations.name == "NO_FILE" ? "" : "--vep-annotations ${vep_annotations}"
+        vep_annotations_option = vep_annotations.name == "NO_FILE" ? "" : "--vep-annotations ${vep_annotations}"
         """
         summarize_variants.R \
             --variants ${variants} \
@@ -663,7 +665,13 @@ workflow {
     add_pileup_allele_fractions(add_specific_variants.out, collected_pileup_counts)
 
     // annotate variants using Ensembl VEP
-    variant_effect_predictor(add_specific_variants.out, reference_sequence_index, vep_cache_dir)
+    one_annotation_per_variant = Channel.value(params.vepPickOneAnnotationPerVariant)
+    variant_effect_predictor(
+        add_specific_variants.out,
+        reference_sequence_index,
+        vep_cache_dir,
+        one_annotation_per_variant
+    )
 
     vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : Channel.fromPath("NO_FILE") )
 
@@ -702,19 +710,20 @@ def printParameterSummary() {
         Variant calling pipeline for amplicon sequencing data
         =====================================================
 
-        Sample sheet              : ${params.samples}
-        BAM directory             : ${params.bamDir}
-        Amplicon details          : ${params.amplicons}
-        specificVariants          : ${params.specificVariants}
-        blacklistedVariants       : ${params.blacklistedVariants}
-        Reference genome sequence : ${params.referenceGenomeFasta}
-        VEP annotation            : ${params.vepAnnotation}
-        VEP cache directory       : ${params.vepCacheDir}
-        Species                   : ${params.vepSpecies}
-        Assembly                  : ${params.vepAssembly}
-        Output directory          : ${params.outputDir}
-        Variant caller            : ${params.variantCaller}
-        Minimum allele fraction   : ${params.minimumAlleleFraction}
+        Sample sheet               : ${params.samples}
+        BAM directory              : ${params.bamDir}
+        Amplicon details           : ${params.amplicons}
+        specificVariants           : ${params.specificVariants}
+        blacklistedVariants        : ${params.blacklistedVariants}
+        Reference genome sequence  : ${params.referenceGenomeFasta}
+        VEP annotation             : ${params.vepAnnotation}
+        VEP cache directory        : ${params.vepCacheDir}
+        Species                    : ${params.vepSpecies}
+        Assembly                   : ${params.vepAssembly}
+        One annotation per variant : ${params.vepPickOneAnnotationPerVariant}
+        Output directory           : ${params.outputDir}
+        Variant caller             : ${params.variantCaller}
+        Minimum allele fraction    : ${params.minimumAlleleFraction}
     """.stripIndent()
     log.info ""
 }
