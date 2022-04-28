@@ -71,6 +71,8 @@ vep_annotations <- variants %>%
     `Variant type` = VARIANT_CLASS,
     Gene,
     `Gene symbol` = SYMBOL,
+    Feature,
+    `Feature type` = Feature_type,
     Exon = EXON,
     Intron = INTRON,
     Consequence,
