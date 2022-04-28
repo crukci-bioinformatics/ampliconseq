@@ -19,7 +19,7 @@ vep \
     --buffer_size 100 \
     --no_stats \
     --dont_skip \
-    --pick \
+    !{vep_pick_option} \
     --everything \
     --minimal \
     --allele_number 1 \
