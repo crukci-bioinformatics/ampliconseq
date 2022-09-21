@@ -1,4 +1,4 @@
-#!/usr/bin/env Rscript
+o!/usr/bin/env Rscript
 
 # ------------------------------------------------------------------------------
 # Copyright (c) 2021 CRUK Cambridge Institute - Bioinformatics Core
@@ -67,7 +67,7 @@ if (nrow(amplicons) == 0) {
   stop("no amplicon intervals found in: ", amplicons_file)
 }
 
-if (nrow(filter(amplicons, is.na(amplicons$ID))) > 0) {
+if (nrow(filter(amplicons, is.na(ID))) > 0) {
   stop("missing IDs in ", amplicons_file)
 }
 

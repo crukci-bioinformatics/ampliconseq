@@ -59,7 +59,7 @@ read_intervals <- function(intervals_file) {
     stop("no intervals found in ", intervals_file)
   }
 
-  if (nrow(filter(intervals, is.na(intervals$ID))) > 0) {
+  if (nrow(filter(intervals, is.na(ID))) > 0) {
     stop("missing IDs in ", intervals_file)
   }
 

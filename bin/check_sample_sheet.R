@@ -50,11 +50,11 @@ if (nrow(samples) == 0) {
   stop("empty samples file: ", input_file)
 }
 
-if (nrow(filter(samples, is.na(samples$ID))) > 0) {
+if (nrow(filter(samples, is.na(ID))) > 0) {
   stop("missing IDs found in ", input_file)
 }
 
-if (nrow(filter(samples, is.na(samples$Sample))) > 0) {
+if (nrow(filter(samples, is.na(Sample))) > 0) {
   stop("missing Sample names found in ", input_file)
 }
 
@@ -68,7 +68,7 @@ if (length(duplicates) > 0) {
 
 # check for BAM column and use default BAM file name if not present
 if ("BAM" %in% colnames(samples)) {
-  if (nrow(filter(samples, is.na(samples$BAM))) > 0) {
+  if (nrow(filter(samples, is.na(BAM))) > 0) {
     stop("missing BAM file names/paths in ", input_file)
   }
 } else {
