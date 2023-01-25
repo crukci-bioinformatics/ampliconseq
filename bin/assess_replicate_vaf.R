@@ -241,131 +241,175 @@ message("Variants: ", nrow(distinct(allele_fractions, Variant)))
 # allele fraction heatmap
 message("Creating variant allele fraction heatmap")
 
-matrix <- allele_fractions %>%
-  transmute(ID, Sample, DisplayID = str_c(ID, Sample, sep = "  "), Variant, `Allele fraction`) %>%
-  pivot_wider(id_cols = c(ID, Sample, DisplayID), names_from = Variant, values_from = `Allele fraction`)
-
-display_ids <- select(matrix, ID, Sample, DisplayID)
-
-groups <- display_ids$Sample
-group_colours <- hue_pal()(length(groups))
-names(group_colours) <- groups
-
-heatmapAnnotation <- HeatmapAnnotation(
-  df = data.frame(Group = groups),
-  col = list(Group = group_colours),
-  simple_anno_size = unit(2, "mm"),
-  show_annotation_name = FALSE
-)
-
-matrix <- matrix %>%
-  select(!c(ID, Sample)) %>%
-  column_to_rownames(var = "DisplayID") %>%
-  as.matrix() %>%
-  t()
-
-row_label_size <- max(8 - floor(nrow(matrix) / 10), 1.5)
-column_label_size <- max(8 - floor(ncol(matrix) / 25), 1.5)
-
-heatmap <- Heatmap(
-  matrix,
-  name = "Allele fraction",
-  col = colorRampPalette(brewer.pal(n = 7, name = "Blues"))(100),
-  row_names_side = "left",
-  row_names_gp = gpar(fontsize = row_label_size),
-  column_names_side = "bottom",
-  column_names_gp = gpar(fontsize = column_label_size),
-  column_dend_height = unit(30, "mm"),
-  show_row_dend = FALSE,
-  heatmap_legend_param = list(
-    title_gp = gpar(fontsize = 9),
-    labels_gp = gpar(fontsize = 8),
-    grid_width = unit(4, "mm"),
-    grid_height = unit(4, "mm")
-  ),
-  top_annotation = heatmapAnnotation
-)
-
 heatmap_width <- 12
 heatmap_height <- 6
 
-pdf(str_c(vaf_heatmap_prefix, ".pdf"), width = heatmap_width, height = heatmap_height)
-draw(heatmap, show_annotation_legend = FALSE)
-dev.off()
+if (nrow(allele_fractions) > 0) {
 
-svglite(str_c(vaf_heatmap_prefix, ".svg"), width = heatmap_width, height = heatmap_height)
-draw(heatmap, show_annotation_legend = FALSE)
-dev.off()
+  matrix <- allele_fractions %>%
+    transmute(ID, Sample, DisplayID = str_c(ID, Sample, sep = "  "), Variant, `Allele fraction`) %>%
+    pivot_wider(id_cols = c(ID, Sample, DisplayID), names_from = Variant, values_from = `Allele fraction`)
 
-rsvg_png(str_c(vaf_heatmap_prefix, ".svg"), str_c(vaf_heatmap_prefix, ".png"), width = heatmap_width * 1000, height = heatmap_height * 1000)
+  display_ids <- select(matrix, ID, Sample, DisplayID)
+
+  groups <- display_ids$Sample
+  group_colours <- hue_pal()(length(groups))
+  names(group_colours) <- groups
+
+  heatmapAnnotation <- HeatmapAnnotation(
+    df = data.frame(Group = groups),
+    col = list(Group = group_colours),
+    simple_anno_size = unit(2, "mm"),
+    show_annotation_name = FALSE
+  )
+
+  matrix <- matrix %>%
+    select(!c(ID, Sample)) %>%
+    column_to_rownames(var = "DisplayID") %>%
+    as.matrix() %>%
+    t()
+
+  row_label_size <- max(8 - floor(nrow(matrix) / 10), 1.5)
+  column_label_size <- max(8 - floor(ncol(matrix) / 25), 1.5)
+
+  heatmap <- Heatmap(
+    matrix,
+    name = "Allele fraction",
+    col = colorRampPalette(brewer.pal(n = 7, name = "Blues"))(100),
+    row_names_side = "left",
+    row_names_gp = gpar(fontsize = row_label_size),
+    column_names_side = "bottom",
+    column_names_gp = gpar(fontsize = column_label_size),
+    column_dend_height = unit(30, "mm"),
+    show_row_dend = FALSE,
+    heatmap_legend_param = list(
+      title_gp = gpar(fontsize = 9),
+      labels_gp = gpar(fontsize = 8),
+      grid_width = unit(4, "mm"),
+      grid_height = unit(4, "mm")
+    ),
+    top_annotation = heatmapAnnotation
+  )
+
+  pdf(str_c(vaf_heatmap_prefix, ".pdf"), width = heatmap_width, height = heatmap_height)
+  draw(heatmap, show_annotation_legend = FALSE)
+  dev.off()
+
+  svglite(str_c(vaf_heatmap_prefix, ".svg"), width = heatmap_width, height = heatmap_height)
+  draw(heatmap, show_annotation_legend = FALSE)
+  dev.off()
+
+  rsvg_png(str_c(vaf_heatmap_prefix, ".svg"), str_c(vaf_heatmap_prefix, ".png"), width = heatmap_width * 1000, height = heatmap_height * 1000)
+
+} else {
+
+  empty_plot <- ggplot() + labs(title = "Insufficient data to create VAF heatmap - too few variant loci to cluster samples/libraries")
+
+  pdf(str_c(vaf_heatmap_prefix, ".pdf"), width = heatmap_width, height = heatmap_height)
+  print(empty_plot)
+  dev.off()
+
+  svglite(str_c(vaf_heatmap_prefix, ".svg"), width = heatmap_width, height = heatmap_height)
+  print(empty_plot)
+  dev.off()
+
+  rsvg_png(str_c(vaf_heatmap_prefix, ".svg"), str_c(vaf_heatmap_prefix, ".png"), width = heatmap_width * 1000, height = heatmap_height * 1000)
+}
 
 # correlation heatmap
 message("Creating correlation heatmap")
 
-correlation_matrix <- cor(matrix, use = "pairwise.complete.obs")
-
-label_size <- max(8 - floor(ncol(correlation_matrix) / 25), 1.25)
-
-heatmap <- Heatmap(
-  correlation_matrix,
-  name = "r",
-  col = colorRampPalette(brewer.pal(n = 7, name = "Reds"))(100),
-  row_names_side = "left",
-  row_names_gp = gpar(fontsize = label_size),
-  column_names_side = "bottom",
-  column_names_gp = gpar(fontsize = label_size),
-  column_dend_height = unit(30, "mm"),
-  show_row_dend = FALSE,
-  heatmap_legend_param = list(
-    title_gp = gpar(fontsize = 9),
-    labels_gp = gpar(fontsize = 8),
-    grid_width = unit(4, "mm"),
-    grid_height = unit(4, "mm")
-  ),
-  top_annotation = heatmapAnnotation
-)
-
 correlation_heatmap_width <- 8
 correlation_heatmap_height <- 10
 
-pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = correlation_heatmap_width, height = correlation_heatmap_height)
-draw(heatmap, show_annotation_legend = FALSE)
-dev.off()
+if (nrow(allele_fractions) > 0 && nrow(matrix) > 1 && ncol(matrix) > 1) {
 
-svglite(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = correlation_heatmap_width, height = correlation_heatmap_height)
-draw(heatmap, show_annotation_legend = FALSE)
-dev.off()
+  correlation_matrix <- cor(matrix, use = "pairwise.complete.obs")
 
-rsvg_png(str_c(vaf_correlation_heatmap_prefix, ".svg"), str_c(vaf_correlation_heatmap_prefix, ".png"), width = correlation_heatmap_width * 1000, height = correlation_heatmap_height * 1000)
+  label_size <- max(8 - floor(ncol(correlation_matrix) / 25), 1.25)
 
-# find pairs of sample replicates with low correlation but which have high
-# correlation to a library from another sample
-correlations <- correlation_matrix %>%
-  as.data.frame() %>%
-  rownames_to_column(var = "DisplayID1") %>%
-  pivot_longer(!DisplayID1, names_to = "DisplayID2", values_to = "Correlation") %>%
-  left_join(display_ids, by = c("DisplayID1" = "DisplayID")) %>%
-  rename(ID1 = ID, Sample1 = Sample) %>%
-  left_join(display_ids, by = c("DisplayID2" = "DisplayID")) %>%
-  rename(ID2 = ID, Sample2 = Sample) %>%
-  select(ID1, Sample1, ID2, Sample2, Correlation) %>%
-  filter(ID1 != ID2)
+  heatmap <- Heatmap(
+    correlation_matrix,
+    name = "r",
+    col = colorRampPalette(brewer.pal(n = 7, name = "Reds"))(100),
+    row_names_side = "left",
+    row_names_gp = gpar(fontsize = label_size),
+    column_names_side = "bottom",
+    column_names_gp = gpar(fontsize = label_size),
+    column_dend_height = unit(30, "mm"),
+    show_row_dend = FALSE,
+    heatmap_legend_param = list(
+      title_gp = gpar(fontsize = 9),
+      labels_gp = gpar(fontsize = 8),
+      grid_width = unit(4, "mm"),
+      grid_height = unit(4, "mm")
+    ),
+    top_annotation = heatmapAnnotation
+  )
 
-# find replicates more highly correlated with libraries from another sample
-mismatched_replicates <- correlations %>%
-  filter(Sample1 == Sample2) %>%
-  filter(Correlation < (1 - minimum_correlation_difference)) %>%
-  select(Sample = Sample1, ID = ID1, `Replicate ID` = ID2, Correlation) %>%
-  left_join(select(correlations, ID = ID1, `Sample 2` = Sample2, `ID 2` = ID2, `Correlation 2` = Correlation), by = "ID") %>%
-  filter(Sample != `Sample 2`) %>%
-  filter(`Correlation 2` >= minimum_mismatch_correlation) %>%
-  filter((`Correlation 2` - Correlation) >= minimum_correlation_difference) %>%
-  group_by(ID, `Replicate ID`) %>%
-  slice_max(order_by = `Correlation 2`, n = 5) %>%
-  ungroup()
+  pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = correlation_heatmap_width, height = correlation_heatmap_height)
+  draw(heatmap, show_annotation_legend = FALSE)
+  dev.off()
 
-mismatched_replicates %>%
-  arrange(Sample, ID, `Replicate ID`, `Sample 2`, `ID 2`) %>%
-  mutate(across(c(Correlation, `Correlation 2`), round, digits = 3)) %>%
-  write_tsv(replicate_mismatch_file)
+  svglite(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = correlation_heatmap_width, height = correlation_heatmap_height)
+  draw(heatmap, show_annotation_legend = FALSE)
+  dev.off()
 
+  rsvg_png(str_c(vaf_correlation_heatmap_prefix, ".svg"), str_c(vaf_correlation_heatmap_prefix, ".png"), width = correlation_heatmap_width * 1000, height = correlation_heatmap_height * 1000)
+
+  # find pairs of sample replicates with low correlation but which have high
+  # correlation to a library from another sample
+  correlations <- correlation_matrix %>%
+    as.data.frame() %>%
+    rownames_to_column(var = "DisplayID1") %>%
+    pivot_longer(!DisplayID1, names_to = "DisplayID2", values_to = "Correlation") %>%
+    left_join(display_ids, by = c("DisplayID1" = "DisplayID")) %>%
+    rename(ID1 = ID, Sample1 = Sample) %>%
+    left_join(display_ids, by = c("DisplayID2" = "DisplayID")) %>%
+    rename(ID2 = ID, Sample2 = Sample) %>%
+    select(ID1, Sample1, ID2, Sample2, Correlation) %>%
+    filter(ID1 != ID2)
+
+  # find replicates more highly correlated with libraries from another sample
+  mismatched_replicates <- correlations %>%
+    filter(Sample1 == Sample2) %>%
+    filter(Correlation < (1 - minimum_correlation_difference)) %>%
+    select(Sample = Sample1, ID = ID1, `Replicate ID` = ID2, Correlation) %>%
+    left_join(select(correlations, ID = ID1, `Sample 2` = Sample2, `ID 2` = ID2, `Correlation 2` = Correlation), by = "ID") %>%
+    filter(Sample != `Sample 2`) %>%
+    filter(`Correlation 2` >= minimum_mismatch_correlation) %>%
+    filter((`Correlation 2` - Correlation) >= minimum_correlation_difference) %>%
+    group_by(ID, `Replicate ID`) %>%
+    slice_max(order_by = `Correlation 2`, n = 5) %>%
+    ungroup()
+
+  mismatched_replicates %>%
+    arrange(Sample, ID, `Replicate ID`, `Sample 2`, `ID 2`) %>%
+    mutate(across(c(Correlation, `Correlation 2`), round, digits = 3)) %>%
+    write_tsv(replicate_mismatch_file)
+
+} else {
+
+  empty_plot <- ggplot() + labs(title = "Insufficient data to create correlation heatmap")
+
+  pdf(str_c(vaf_correlation_heatmap_prefix, ".pdf"), width = correlation_heatmap_width, height = correlation_heatmap_height)
+  print(empty_plot)
+  dev.off()
+
+  svglite(str_c(vaf_correlation_heatmap_prefix, ".svg"), width = correlation_heatmap_width, height = correlation_heatmap_height)
+  print(empty_plot)
+  dev.off()
+
+  rsvg_png(str_c(vaf_correlation_heatmap_prefix, ".svg"), str_c(vaf_correlation_heatmap_prefix, ".png"), width = correlation_heatmap_width * 1000, height = correlation_heatmap_height * 1000)
+
+  tibble(
+    Sample = character(0),
+    ID = character(0),
+    `Replicate ID` = character(0),
+    Correlation = numeric(0),
+    `Sample 2` = character(0),
+    `ID 2` = character(0),
+    `Correlation 2` = numeric(0)
+  ) %>%
+    write_tsv(replicate_mismatch_file)
+}
