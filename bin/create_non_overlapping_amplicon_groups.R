@@ -1,4 +1,4 @@
-o!/usr/bin/env Rscript
+#!/usr/bin/env Rscript
 
 # ------------------------------------------------------------------------------
 # Copyright (c) 2021 CRUK Cambridge Institute - Bioinformatics Core
