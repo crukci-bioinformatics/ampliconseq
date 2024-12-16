@@ -28,7 +28,7 @@ Variant calling pipeline for amplicon sequencing data.
 * [Other information](#misc)
     * [Confidence level for variants called in replicate libraries](#confidence)
     * [Low allele fraction SNVs](#low_allele_fraction)
-    * [Background noise filters](#background_noise_filters)
+        * [Background noise filters](#background_noise_filters)
 
 ---
 
