@@ -25,6 +25,10 @@ Variant calling pipeline for amplicon sequencing data.
     * [Execution profiles](#execution_profiles)
     * [Nextflow reports](#nextflow_reports)
     * [Nextflow log files and work directories](#nextflow_log_files_and_work_directories)
+* [Other information](#misc)
+    * [Confidence level for variants called in replicate libraries](#confidence)
+    * [Low allele fraction SNVs](#low_allele_fraction)
+    * [Background noise filters](#background_noise_filters)
 
 ---
 
@@ -611,4 +615,55 @@ directory specified using the `--outputDir` command line option or the
 `outputDir` parameter. The `work` directory (and all its subdirectories) can be
 deleted on successful completion of the pipeline unless other Nextflow pipeline
 runs are also making use of the same top-level work directory.
+
+## <a name="misc">Other information</a>
+
+### <a name="confidence">Confidence level for variants called in replicate libraries</a>
+
+The variants in the summary table output file are assigned a confidence that can
+be one of three values: high, medium or low. Factors that determining the
+confidence of a variant within a sample include whether the call is made without
+being filtered in all of the sample replicates and whether a specified minimum
+depth is reached within each replicate library. The minimum depth or coverage
+threshold can be specified in the configuration file using the
+minimumDepthForHighConfidenceCalls parameter; by default this is set to 100.
+
+Confidence | Criteria
+-----------|----------------------------------------
+High       | Call passes filters in all replicates and depth in each is not below the minimum coverage threshold.
+Medium     | Call passes filters in at least one replicate with a depth that is not below the minimum coverage threshold.
+Low        | Calls which don't pass filters in any replicate or for which there is insufficient coverage.
+
+### <a name="low_allele_fraction">Low allele fraction SNVs</a>
+
+The ampliconseq pipeline supports calling of SNVs with low allele fractions by
+modelling the background noise in the sequence data. This allows for calling
+SNVs from circulating tumour DNA in plasma samples with allele fractions as low
+as 0.1%, although this is only possible for certain substitution types in which
+the background noise levels are low. For example, with Illumina sequencers C>G,
+G>C, A>C and T>G variants are more amenable to calling at low allele fractions
+than A>G, T>C, C>T and G>A.
+
+VarDict can call variants with very low allele fractions by setting the
+minimumAlleleFraction configuration parameter, e.g. to 0.001 (0.1%).
+
+#### <a name="background_noise_filters">Background noise filters</a>
+
+A Beta probability distribution is fitted to the distribution of allele
+fractions for all the samples/libraries in the run at each target position and
+for each of the three possible substitutions at that position. This is used to
+obtain an allele fraction threshold using the quantile corresponding to
+probability, p = 0.9999, below which there would be low confidence in a SNV
+call. Fitting the distribution for each amplicon target position takes account
+of both the background noise associated with the substitution type and the
+position within the amplicon, in effect identifying and accounting for noisy
+positions.
+
+Similarly, probability distributions are fitted separately for each substitution
+type within each sample library using all positions for which that substitution
+is possible. This models the background noise at the library level, so higher
+allele fraction thresholds are obtained for noisy libraries.
+
+Background noise filters are applied while summarizing the variant calls into
+the final variant output table.
 
