@@ -102,7 +102,7 @@ process check_inputs {
 process picard_metrics {
     tag "${id}"
 
-    memory { 2.GB * task.attempt }
+    memory { 4.GB * task.attempt }
     time { 2.hour * task.attempt }
     maxRetries 2
 
@@ -126,7 +126,7 @@ process picard_metrics {
 process extract_amplicon_regions {
     tag "${id}"
 
-    memory { 2.GB * task.attempt }
+    memory { 4.GB * task.attempt }
     time { 2.hour * task.attempt }
     maxRetries 2
 
