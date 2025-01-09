@@ -476,6 +476,9 @@ process apply_background_noise_filters {
 
 // annotate variants using Ensembl VEP
 process variant_effect_predictor {
+
+    memory 4.GB
+
     input:
         path variants
         path reference_sequence_index
