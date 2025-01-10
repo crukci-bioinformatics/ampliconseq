@@ -46,7 +46,6 @@ def javaMemMB(task)
 // create non-overlapping amplicon groups where none of the amplicons overlap
 // with another amplicon from the same group
 process create_non_overlapping_amplicon_groups {
-    executor "local"
 
     input:
         path amplicon_details
@@ -77,7 +76,6 @@ process create_non_overlapping_amplicon_groups {
 // check input files are valid and create validated versions in CSV format
 // (inputs can be either TSV or CSV) for use in subsequent processes
 process check_inputs {
-    executor "local"
 
     input:
         path sample_sheet
@@ -169,7 +167,7 @@ process call_variants {
 
 // merge amplicon group VCF files for each library and convert to tabular format
 process collate_variants {
-    // executor "local"
+
     publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${prefix}.vcf"
 
     input:
@@ -210,7 +208,6 @@ process pileup_counts {
 
 // annotate and sort pileup counts
 process annotate_and_sort_pileup_counts {
-    // executor "local"
 
     input:
         tuple path(pileup_counts), path(samples), path(amplicons)
@@ -233,7 +230,7 @@ process annotate_and_sort_pileup_counts {
 
 // collate alignment and amplicon/target coverage metrics
 process collate_alignment_coverage_metrics {
-    executor "local"
+
     publishDir "${params.outputDir}", mode: "copy", pattern: "${alignment_coverage_metrics}"
     publishDir "${params.outputDir}", mode: "copy", pattern: "${amplicon_coverage_metrics}"
     publishDir "${params.outputDir}/qc", mode: "copy", pattern: "${sorted_amplicon_coverage}"
@@ -273,7 +270,7 @@ process collate_alignment_coverage_metrics {
 // create coverage plots including on/off target/amplicon yield stacked bar plot
 // and amplicon coverage box plot
 process create_coverage_plots {
-    executor "local"
+
     publishDir "${params.outputDir}/qc", mode: "copy"
 
     input:
@@ -301,6 +298,7 @@ process create_coverage_plots {
 
 // assess sample replicates based on correlation of SNV allele fractions
 process assess_replicate_vaf {
+
     publishDir "${params.outputDir}/qc", mode: "copy"
 
     input:
@@ -337,7 +335,7 @@ process assess_replicate_vaf {
 // create QC report from collated alignment/coverage metrics and plots and the
 // replicate library allele fraction correlation/clustering
 process create_qc_report {
-    executor "local"
+
     publishDir "${params.outputDir}", mode: "copy"
 
     input:
@@ -369,7 +367,6 @@ process create_qc_report {
 // expand variant table to include specific variants and missing calls within
 // sample replicates
 process add_specific_variants {
-    executor "local"
 
     input:
         path samples
@@ -395,7 +392,6 @@ process add_specific_variants {
 
 // add depth and allele fraction from pileup counts to variants
 process add_pileup_allele_fractions {
-    executor "local"
 
     input:
         path variants
@@ -452,7 +448,6 @@ process compute_background_noise_thresholds {
 // add background noise thresholds to variants table and applies background
 // noise filters
 process apply_background_noise_filters {
-    executor "local"
 
     input:
         path variants
@@ -497,7 +492,6 @@ process variant_effect_predictor {
 
 // additional variant annotations (sequence context, indel length, etc.)
 process annotate_variants {
-    executor "local"
 
     input:
         tuple path(variants), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
@@ -515,7 +509,7 @@ process annotate_variants {
 // gather variant calls/details for replicate libraries into a single row and
 // add VEP and additional annotations
 process summarize_variants {
-    executor "local"
+
     publishDir "${params.outputDir}", mode: "copy"
 
     input:
