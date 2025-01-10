@@ -124,7 +124,7 @@ process picard_metrics {
 process extract_amplicon_regions {
     tag "${id}"
 
-    memory { 4.GB * task.attempt }
+    memory { 2.GB * task.attempt }
     time { 2.hour * task.attempt }
     maxRetries 2
 
@@ -189,7 +189,7 @@ process collate_variants {
 process pileup_counts {
     tag "${id}"
 
-    memory { 4.GB * task.attempt }
+    memory { 8.GB * task.attempt }
     time { 4.hour * task.attempt }
     maxRetries 2
 
