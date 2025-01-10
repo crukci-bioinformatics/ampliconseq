@@ -393,6 +393,10 @@ process add_specific_variants {
 // add depth and allele fraction from pileup counts to variants
 process add_pileup_allele_fractions {
 
+    memory { 8.GB * task.attempt }
+    time { 2.hour * task.attempt }
+    maxRetries 1
+
     input:
         path variants
         path pileup_counts
