@@ -69,7 +69,7 @@ The ampliconseq pipeline has the following features:
 * Accompanying visualization tool for viewing and assessing SNV calls
 
 The ampliconseq pipeline was developed by the
-[Bioinformatics Core](https://www.cruk.cam.ac.uk/core-facilities/bioinformatics-core)
+[Bioinformatics Core](https://www.cruk.cam.ac.uk/core-facilities/bioinformatics)
 in collaboration with
 [James Brenton's research group](https://www.cruk.cam.ac.uk/research-groups/brenton-group)
 at the
@@ -718,7 +718,7 @@ distributions available.
 
 ![Density plot showing the distribution of allele fractions for a selected position and substitution for all library datasets within a pipeline run][density_plot]
 
-4. The *Cullen and Frey* graph shows the degree of kurtosis and skewness for the
+4. The *Cullen and Frey graph* shows the degree of kurtosis and skewness for the
 allele fractions for the selected position and substitution in the context of a
 number of theoretical distributions. In most cases, the beta distribution seems
 a good choice and is the distribution used to fit allele fraction data by the
