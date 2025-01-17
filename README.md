@@ -25,10 +25,10 @@ Variant calling pipeline for amplicon sequencing data.
     * [Execution profiles](#execution_profiles)
     * [Nextflow reports](#nextflow_reports)
     * [Nextflow log files and work directories](#nextflow_log_files_and_work_directories)
-* [Other information](#misc)
-    * [Confidence level for variants called in replicate libraries](#confidence)
-    * [Low allele fraction SNVs](#low_allele_fraction)
-        * [Background noise filters](#background_noise_filters)
+* [Confidence level for variants called in replicate libraries](#confidence)
+* [Low allele fraction SNVs](#low_allele_fraction)
+    * [Background noise filters](#background_noise_filters)
+    * [R/Shiny visualization tool](#r_shiny_app)
 
 ---
 
@@ -616,9 +616,7 @@ directory specified using the `--outputDir` command line option or the
 deleted on successful completion of the pipeline unless other Nextflow pipeline
 runs are also making use of the same top-level work directory.
 
-## <a name="misc">Other information</a>
-
-### <a name="confidence">Confidence level for variants called in replicate libraries</a>
+## <a name="confidence">Confidence level for variants called in replicate libraries</a>
 
 The variants in the summary table output file are assigned a confidence that can
 be one of three values: high, medium or low. Factors that determining the
@@ -634,7 +632,7 @@ High       | Call passes filters in all replicates and depth in each is not belo
 Medium     | Call passes filters in at least one replicate with a depth that is not below the minimum coverage threshold.
 Low        | Calls which don't pass filters in any replicate or for which there is insufficient coverage.
 
-### <a name="low_allele_fraction">Low allele fraction SNVs</a>
+## <a name="low_allele_fraction">Low allele fraction SNVs</a>
 
 The ampliconseq pipeline supports calling of SNVs with low allele fractions by
 modelling the background noise in the sequence data. This allows for calling
@@ -647,7 +645,7 @@ than A>G, T>C, C>T and G>A.
 VarDict can call variants with very low allele fractions by setting the
 minimumAlleleFraction configuration parameter, e.g. to 0.001 (0.1%).
 
-#### <a name="background_noise_filters">Background noise filters</a>
+### <a name="background_noise_filters">Background noise filters</a>
 
 A Beta probability distribution is fitted to the distribution of allele
 fractions for all the samples/libraries in the run at each target position and
@@ -666,4 +664,90 @@ allele fraction thresholds are obtained for noisy libraries.
 
 Background noise filters are applied while summarizing the variant calls into
 the final variant output table.
+
+### <a name="r_shiny_app">R/Shiny visualization tool</a>
+
+The ampliconseq package contains a visualization tool written in R using the
+Shiny framework. To start the application, clone the package from GitHub and
+navigate on the command line to the `shiny` subdirectory, then run the
+following.
+
+```
+Rscript start_shiny_app.R
+```
+
+This should open the application within a web browser. Brief instructions for
+using the application are given below.
+
+Note that this requires the following R packages (the versions given are those
+that have been tested).
+
+* R 4.4.2
+* tidyverse 2.0.0
+* shiny 1.10.0
+* fitdistrplus 1.2-2
+* DT 0.33
+* highcharter 0.9.4
+
+*Warning:* this application should be considered a beta release and occasionally
+freezes, in which case either the web page should be refreshed and the data
+reloaded or, failing that, the application may need to be restarted.
+ 
+1. From the *Read counts* tab, load the read counts file, pileup_counts.txt,
+produced as one of the output files by the ampliconseq pipeline. The read counts
+file can be large and it can take a few seconds before the table is populated.
+
+2. From the *Locations* tab, select a target position and alternate allele to
+show the allele fractions for all libraries/datasets within the run as a scatter
+plot. If there are multiple overlapping target amplicons at that position these
+are selected using a drop down menu and viewed separately. Superimposed on the
+scatter plot is a box and whiskers plot. The allele fraction threshold below
+which SNV calls should be filtered is shown as a red line.
+
+![Allele fraction scatter plot for a selected position and substitution for all library datasets within a pipeline run][scatter_plot]
+
+3. Within the *Locations* tab, select the *Density plot* tab to view the allele
+fractions in the form of a kernel density plot. Some filtering of the data
+points with the highest allele fractions and those with values of zero is
+performed to aid with the fitting of a probability distribution. This filtered
+density is also shown as well as the fitted probability distribution. The
+parameters for filtering data points to exclude from fitting can be modified
+using the dialog on the left hand side. Also, there is a choice of probability
+distribution that can be fitted with the normal, log-normal and beta
+distributions available.
+
+![Density plot showing the distribution of allele fractions for a selected position and substitution for all library datasets within a pipeline run][density_plot]
+
+4. The *Cullen and Frey* graph shows the degree of kurtosis and skewness for the
+allele fractions for the selected position and substitution in the context of a
+number of theoretical distributions. In most cases, the beta distribution seems
+a good choice and is the distribution used to fit allele fraction data by the
+ampliconseq pipeline.
+
+![Cullen and Frey graph][cullen_frey_plot]
+
+5. The scatter and density plots are interactive, supporting zooming, selection
+of data points and display of tooltips that provide a summary for each data
+point. Selecting a data point provides details about the substitution in a table
+below the scatter plot. When SNV calls are also loaded (see below) the points in
+the scatter plot are categorized according to call status; clicking on the
+category in the legend toggles the display of points within that category.
+
+6. From the *SNVs* tab, load the SNVs called by the ampliconseq pipeline
+(variants.txt). The table is populated with details of the SNV calls including
+the filters, if any, that were applied and the confidence of the call. The table
+is interactive and supports sorting by clicking on a column and filtering using
+the search box above the table or the individual column search boxes below the
+table. Selecting a SNV call in this table will update the selections in the
+Locations and Libraries tabs.
+
+![SNV table][snv_table]
+
+7. The *Libraries* tab is very similar to the *Locations* tab but shows the
+allele fractions for all substitutions within a selected library/dataset.
+
+[scatter_plot]: images/scatter_plot.png "Allele fraction scatter plot"
+[density_plot]: images/density_plot.png "Allele fraction density plot" 
+[cullen_frey_plot]: images/cullen_frey_plot.png "Cullen and Frey graph"
+[snv_table]: images/snv_table.png "Table of SNV calls"
 
