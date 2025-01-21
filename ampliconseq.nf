@@ -422,6 +422,8 @@ process compute_background_noise_thresholds {
     time { 4.hour * task.attempt }
     maxRetries 1
 
+    publishDir "${params.outputDir}", mode: "copy"
+
     input:
         path pileup_counts
         path variants
