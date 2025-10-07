@@ -32,17 +32,18 @@ import picocli.CommandLine.Option;
 
 /**
  * Utility for annotating variants in a VCF file with the identifier for the
- * overlapping amplicon.
+ * overlapping amplicon and the offset to the primer end.
  *
  * It is expected that each variant will overlap with one and only one amplicon.
  *
  * @author eldrid01
  */
-@Command(name = "annotate-vcf-with-amplicon-info", versionProvider = AnnotateVcfWithAmpliconInfo.class, description = "\nAnnotates variants with the id of the overlapping amplicon.\n", mixinStandardHelpOptions = true)
+@Command(name = "annotate-vcf-with-amplicon-info", versionProvider = AnnotateVcfWithAmpliconInfo.class, description = "\nAnnotates variants with the id of the overlapping amplicon and the offset to the primer end.\n", mixinStandardHelpOptions = true)
 public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
     private static final String AMPLICON_ATTRIBUTE = "AMPLICON";
+    private static final String OFFSET_ATTRIBUTE = "OFFSET_TO_PRIMER_END";
 
     @Option(names = { "-i", "--input" }, required = true, description = "Input VCF file (required).")
     private File inputVcfFile;
@@ -52,7 +53,7 @@ public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
     private File targetIntervalsFile;
 
     @Option(names = { "-o",
-            "--output" }, required = true, description = "Output VCF file with variants annotated with the amplicon id (required).")
+            "--output" }, required = true, description = "Output VCF file with variants annotated with the amplicon info (required).")
     private File outputVcfFile;
 
     public static void main(String[] args) {
@@ -62,7 +63,7 @@ public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
 
     /**
      * Main run method in which VCF records are annotated with the name of the
-     * overlapping amplicon.
+     * overlapping amplicon and the offset to the nearest primer end.
      */
     @Override
     public Integer call() throws Exception {
@@ -79,6 +80,8 @@ public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
 
         header.addMetaDataLine(
                 new VCFInfoHeaderLine(AMPLICON_ATTRIBUTE, 1, VCFHeaderLineType.String, "The amplicon identifier."));
+        header.addMetaDataLine(
+                new VCFInfoHeaderLine(OFFSET_ATTRIBUTE, 1, VCFHeaderLineType.String, "The offset to the primer end."));
 
         VariantContextWriterBuilder builder = new VariantContextWriterBuilder().setOutputFile(outputVcfFile)
                 .setOutputFileType(OutputType.VCF).setReferenceDictionary(header.getSequenceDictionary())
@@ -88,24 +91,29 @@ public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
         writer.writeHeader(header);
 
         for (VariantContext variant : reader) {
-            String ampliconId = null;
+            Interval overlappingTarget = null;
 
             for (Interval target : targets) {
                 if (variant.getContig().equals(target.getContig()) && variant.getStart() <= target.getEnd()
                         && variant.getEnd() >= target.getStart()) {
-                    if (ampliconId == null) {
-                        ampliconId = target.getName();
+                    if (overlappingTarget == null) {
+                        overlappingTarget = target;
                     } else {
                         logger.warn("Multiple amplicons found for variant " + variant);
                     }
                 }
             }
 
-            if (ampliconId == null) {
+            if (overlappingTarget == null) {
                 // VarDict has been observed to call variants just outside a target region
                 logger.warn("No overlapping amplicon for variant " + variant);
             } else {
-                variant.getCommonInfo().putAttribute(AMPLICON_ATTRIBUTE, ampliconId);
+                variant.getCommonInfo().putAttribute(AMPLICON_ATTRIBUTE, overlappingTarget.getName());
+                int start = variant.getStart();
+                int end = variant.getEnd();
+                if (variant.isSimpleInsertion()) end++;
+                int offset = Math.min(start - overlappingTarget.getStart(), overlappingTarget.getEnd() - end) + 1;
+                variant.getCommonInfo().putAttribute(OFFSET_ATTRIBUTE, offset);
             }
 
             writer.add(variant);
