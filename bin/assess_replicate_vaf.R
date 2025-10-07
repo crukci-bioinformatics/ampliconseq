@@ -322,7 +322,7 @@ message("Creating correlation heatmap")
 correlation_heatmap_width <- 8
 correlation_heatmap_height <- 10
 
-if (nrow(allele_fractions) > 0 && nrow(matrix) > 1 && ncol(matrix) > 1) {
+if (nrow(allele_fractions) > 0 && nrow(matrix) > 2 && ncol(matrix) > 1) {
 
   correlation_matrix <- cor(matrix, use = "pairwise.complete.obs")
 
