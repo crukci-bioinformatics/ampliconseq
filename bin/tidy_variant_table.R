@@ -45,7 +45,7 @@ suppressPackageStartupMessages(library(tidyverse))
 variants <- read_tsv(input_file, col_types = cols(.default = "c"))
 
 # rename columns
-colnames(variants) <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt", "Multiallelic", "Type", "Filters", "Quality", "Depth", "AD", "Allele fraction")
+colnames(variants) <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt", "Multiallelic", "Type", "Filters", "Quality", "FivePrimeContext", "Depth", "AD", "Allele fraction")
 
 # separate Ref and Alt allelic depths from AD column
 variants <- separate(variants, AD, into = c("Ref count", "Alt count"), sep = ",")
@@ -65,6 +65,19 @@ if (all(is.na(variants$`Allele fraction`))) {
 variants <- variants %>%
   mutate(ID = id) %>%
   select(ID, everything())
+
+# Fix deletions where the alternate allele is '*' that come from multi-allelic
+# variants by adding the preceding base to the reference allele and replacing
+# the '*' with the preceding base.
+# e.g. chr17 29563076 T * becomes chr17 29563076 GT T
+# This requires the FivePrimeContext field to have been set, e.g. by running the
+# add-assorted-annotations-to-vcf tool.
+variants <- variants %>%
+  mutate(Position = as.integer(Position)) %>%
+  mutate(Position = ifelse(Alt == "*", Position - 1, Position)) %>%
+  mutate(Ref = ifelse(Alt == "*", str_c(FivePrimeContext, Ref), Ref)) %>%
+  mutate(Alt = ifelse(Alt == "*", FivePrimeContext, Alt)) %>%
+  select(-FivePrimeContext)
 
 # sort variants and write to output file
 write_tsv(variants, output_file, na = "")
