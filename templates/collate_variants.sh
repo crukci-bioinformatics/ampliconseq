@@ -12,9 +12,15 @@ gatk --java-options "-Xmx!{java_mem}m" MergeVcfs \
     --SEQUENCE_DICTIONARY !{reference_sequence_dictionary} \
     --OUTPUT "!{vcf}"
 
+add-assorted-annotations-to-vcf \
+    --input "!{vcf}" \
+    --output merged_and_annotated_variants.vcf \
+    --reference-sequence !{reference_sequence} \
+    --sequence-context-length 1
+
 gatk --java-options "-Xmx!{java_mem}m" VariantsToTable \
-    --variant "!{vcf}" \
-    --output variant_table.txt \
+    --variant merged_and_annotated_variants.vcf \
+    --output merged_and_annotated_variants.txt \
     --show-filtered \
     --split-multi-allelic \
     --fields AMPLICON \
@@ -26,12 +32,13 @@ gatk --java-options "-Xmx!{java_mem}m" VariantsToTable \
     --fields TYPE \
     --fields FILTER \
     --fields QUAL \
+    --fields FivePrimeContext \
     --genotype-fields DP \
     --asGenotypeFieldsToTake AD \
     --asGenotypeFieldsToTake AF
 
 tidy_variant_table.R \
-    --input variant_table.txt \
+    --input merged_and_annotated_variants.txt \
     --id "!{id}" \
     --output "!{variants}"
 
