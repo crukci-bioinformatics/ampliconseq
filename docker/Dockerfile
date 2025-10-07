@@ -24,7 +24,7 @@ ENV PATH /opt/conda/envs/ampliconseq/bin:$PATH
 # ensures that a new build is run if commits have been made since the last build
 ADD "https://api.github.com/repos/crukci-bioinformatics/htsjdk-tools/commits?per_page=1" /opt/htsjdk-tools/.latest_commit
 
-ARG HTSJDK_TOOLS_VERSION=master
+ARG HTSJDK_TOOLS_VERSION=1.1
 
 RUN git clone --branch ${HTSJDK_TOOLS_VERSION} --depth 1 https://github.com/crukci-bioinformatics/htsjdk-tools /opt/htsjdk-tools/build && \
     cd /opt/htsjdk-tools/build && \
