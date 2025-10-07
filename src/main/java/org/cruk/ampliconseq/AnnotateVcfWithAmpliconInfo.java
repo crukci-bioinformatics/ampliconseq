@@ -38,8 +38,8 @@ import picocli.CommandLine.Option;
  *
  * @author eldrid01
  */
-@Command(name = "annotate-vcf-with-amplicon-ids", versionProvider = AnnotateVcfWithAmpliconIds.class, description = "\nAnnotates variants with the id of the overlapping amplicon.\n", mixinStandardHelpOptions = true)
-public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
+@Command(name = "annotate-vcf-with-amplicon-info", versionProvider = AnnotateVcfWithAmpliconInfo.class, description = "\nAnnotates variants with the id of the overlapping amplicon.\n", mixinStandardHelpOptions = true)
+public class AnnotateVcfWithAmpliconInfo extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
     private static final String AMPLICON_ATTRIBUTE = "AMPLICON";
@@ -48,15 +48,15 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
     private File inputVcfFile;
 
     @Option(names = { "-l",
-            "--amplicon-intervals" }, required = true, description = "Amplicon intervals in which variants were called; can be in BED or Picard-style interval format (required).")
-    private File ampliconIntervalsFile;
+            "--target-intervals" }, required = true, description = "Amplicon target intervals in which variants were called; can be in BED or Picard-style interval format (required).")
+    private File targetIntervalsFile;
 
     @Option(names = { "-o",
             "--output" }, required = true, description = "Output VCF file with variants annotated with the amplicon id (required).")
     private File outputVcfFile;
 
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new AnnotateVcfWithAmpliconIds()).execute(args);
+        int exitCode = new CommandLine(new AnnotateVcfWithAmpliconInfo()).execute(args);
         System.exit(exitCode);
     }
 
@@ -69,10 +69,10 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
         logger.info(getClass().getName() + " (" + getPackageNameAndVersion() + ")");
 
         IOUtil.assertFileIsReadable(inputVcfFile);
-        IOUtil.assertFileIsReadable(ampliconIntervalsFile);
+        IOUtil.assertFileIsReadable(targetIntervalsFile);
         IOUtil.assertFileIsWritable(outputVcfFile);
 
-        List<Interval> amplicons = IntervalUtils.readIntervalFile(ampliconIntervalsFile);
+        List<Interval> targets = IntervalUtils.readIntervalFile(targetIntervalsFile);
 
         VCFFileReader reader = new VCFFileReader(inputVcfFile, false);
         VCFHeader header = reader.getFileHeader();
@@ -90,11 +90,11 @@ public class AnnotateVcfWithAmpliconIds extends CommandLineProgram {
         for (VariantContext variant : reader) {
             String ampliconId = null;
 
-            for (Interval amplicon : amplicons) {
-                if (variant.getContig().equals(amplicon.getContig()) && variant.getStart() <= amplicon.getEnd()
-                        && variant.getEnd() >= amplicon.getStart()) {
+            for (Interval target : targets) {
+                if (variant.getContig().equals(target.getContig()) && variant.getStart() <= target.getEnd()
+                        && variant.getEnd() >= target.getStart()) {
                     if (ampliconId == null) {
-                        ampliconId = amplicon.getName();
+                        ampliconId = target.getName();
                     } else {
                         logger.warn("Multiple amplicons found for variant " + variant);
                     }

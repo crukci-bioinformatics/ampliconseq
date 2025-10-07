@@ -91,8 +91,8 @@
                             <id>pileup-counts</id>
                         </program>
                         <program>
-                            <mainClass>org.cruk.ampliconseq.AnnotateVcfWithAmpliconIds</mainClass>
-                            <id>annotate-vcf-with-amplicon-ids</id>
+                            <mainClass>org.cruk.ampliconseq.AnnotateVcfWithAmpliconInfo</mainClass>
+                            <id>annotate-vcf-with-amplicon-info</id>
                         </program>
                         <program>
                             <mainClass>org.cruk.ampliconseq.AddAssortedAnnotationsToVcf</mainClass>
