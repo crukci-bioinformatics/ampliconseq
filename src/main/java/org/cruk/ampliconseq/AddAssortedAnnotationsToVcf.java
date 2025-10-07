@@ -34,7 +34,7 @@ import picocli.CommandLine.Option;
  *
  * @author eldrid01
  */
-@Command(name = "add-assorted-annotations-to-vcf", versionProvider = AnnotateVcfWithAmpliconIds.class, description = "\nAdds various annotations to variants in a VCF file.\n", mixinStandardHelpOptions = true)
+@Command(name = "add-assorted-annotations-to-vcf", versionProvider = AddAssortedAnnotationsToVcf.class, description = "\nAdds various annotations to variants in a VCF file.\n", mixinStandardHelpOptions = true)
 public class AddAssortedAnnotationsToVcf extends CommandLineProgram {
 
     private static final Logger logger = LogManager.getLogger();
