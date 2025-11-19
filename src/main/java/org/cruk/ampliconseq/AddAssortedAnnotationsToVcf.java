@@ -40,6 +40,7 @@ public class AddAssortedAnnotationsToVcf extends CommandLineProgram {
     private static final Logger logger = LogManager.getLogger();
 
     // annotation names
+    private static final String MULTIALLELIC = "MULTIALLELIC";
     private static final String FIVE_PRIME_SEQUENCE_CONTEXT = "FivePrimeContext";
     private static final String THREE_PRIME_SEQUENCE_CONTEXT = "ThreePrimeContext";
     private static final String INDEL_LENGTH = "IndelLength";
@@ -92,6 +93,7 @@ public class AddAssortedAnnotationsToVcf extends CommandLineProgram {
         writer.writeHeader(header);
 
         for (VariantContext variant : reader) {
+            addMultiallelicFlag(variant);
             addSequenceContext(variant, referenceSequence);
             addIndelLength(variant);
             writer.add(variant);
@@ -110,12 +112,25 @@ public class AddAssortedAnnotationsToVcf extends CommandLineProgram {
      * @param header the VCF header
      */
     private void addInfoHeaderLines(VCFHeader header) {
+        header.addMetaDataLine(new VCFInfoHeaderLine(MULTIALLELIC, 1, VCFHeaderLineType.Flag,
+                "Indicates the variant is multiallelic."));
         header.addMetaDataLine(new VCFInfoHeaderLine(FIVE_PRIME_SEQUENCE_CONTEXT, 1, VCFHeaderLineType.String,
                 "The 5' prime sequence context."));
         header.addMetaDataLine(new VCFInfoHeaderLine(THREE_PRIME_SEQUENCE_CONTEXT, 1, VCFHeaderLineType.String,
                 "The 3' prime sequence context."));
         header.addMetaDataLine(
                 new VCFInfoHeaderLine(INDEL_LENGTH, 1, VCFHeaderLineType.Integer, "The length of the indel."));
+    }
+
+    /**
+     * Adds an INFO flag if the variant is multiallelic.
+     *
+     * @param variant
+     */
+    private void addMultiallelicFlag(VariantContext variant) {
+        if (!variant.isBiallelic()) {
+            variant.getCommonInfo().putAttribute(MULTIALLELIC, true);
+        }
     }
 
     /**
