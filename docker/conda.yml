@@ -17,3 +17,4 @@ dependencies:
   - bioconda::gatk4=4.2.3.0
   - bioconda::vardict-java=1.8.3
   - bioconda::ensembl-vep=104.3
+  - bioconda::bcftools=1.17
