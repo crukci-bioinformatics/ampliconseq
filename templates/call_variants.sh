@@ -45,7 +45,7 @@ else
     exit 1
 fi
 
-JAVA_OPTS="-Xmx!{java_mem}m" annotate-vcf-with-amplicon-info \
+JAVA_OPTS="-Xmx!{java_mem}m" annotate-vcf-with-amplicon-ids \
     --input variants.vcf \
     --target-intervals !{target_bed} \
     --output "!{vcf}"
