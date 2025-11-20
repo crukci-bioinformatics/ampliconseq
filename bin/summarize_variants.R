@@ -69,19 +69,6 @@ variants <- read_tsv(variants_file, col_types = cols(
   `Library noise threshold` = "d",
   .default = "c"))
 
-# remove duplicates due to splitting multi-allelic variants where they are also
-# called separately (have seen this with GATK HaplotypeCaller)
-duplicates <- variants %>%
-  count(Sample, ID, Amplicon, Chromosome, Position, Ref, Alt) %>%
-  filter(n > 1)
-
-multiallelic_duplicates <- variants %>%
-  semi_join(duplicates, by = c("Sample", "ID", "Amplicon", "Chromosome", "Ref", "Alt")) %>%
-  filter(!Multiallelic)
-
-variants <- variants %>%
-  anti_join(multiallelic_duplicates, by = c("Sample", "ID", "Amplicon", "Chromosome", "Ref", "Alt", "Multiallelic"))
-
 # rounding for allele fraction and noise thresholds
 variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position noise threshold`, `Library noise threshold`), ~ round(.x, digits = 5)))
 

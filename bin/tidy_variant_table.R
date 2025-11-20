@@ -20,7 +20,7 @@ suppressPackageStartupMessages(library(optparse))
 option_list <- list(
 
   make_option(c("--input"), dest = "input_file",
-              help = "Variant table from GATK VariantsToTable (AMPLICON, CHROM, POS, REF, ALT, MULTI-ALLELIC, TYPE, FILTER, QUAL, {ID}.DP {ID}.AD {ID}.AF columns required)"),
+              help = "Variant table from GATK VariantsToTable (AMPLICON, CHROM, POS, REF, ALT, MULTI-ALLELIC, FILTER, QUAL, {ID}.DP {ID}.AD {ID}.AF columns required)"),
 
   make_option(c("--id"), dest = "id", help = "Library ID"),
 
@@ -45,7 +45,12 @@ suppressPackageStartupMessages(library(tidyverse))
 variants <- read_tsv(input_file, col_types = cols(.default = "c"))
 
 # rename columns
-colnames(variants) <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt", "Multiallelic", "Type", "Filters", "Quality", "FivePrimeContext", "Depth", "AD", "Allele fraction")
+colnames(variants) <- c("Amplicon", "Chromosome", "Position", "Ref", "Alt", "Multiallelic", "Filters", "Quality", "FivePrimeContext", "Depth", "AD", "Allele fraction")
+
+# convert Multiallelic column to boolean and change NAs to FALSE
+variants <- variants %>%
+  mutate(Multiallelic = as.logical(Multiallelic)) %>%
+  mutate(Multiallelic = replace_na(Multiallelic, FALSE))
 
 # separate Ref and Alt allelic depths from AD column
 variants <- separate(variants, AD, into = c("Ref count", "Alt count"), sep = ",")
@@ -79,6 +84,27 @@ variants <- variants %>%
   mutate(Alt = ifelse(Alt == "*", FivePrimeContext, Alt)) %>%
   select(-FivePrimeContext)
 
-# sort variants and write to output file
+# remove duplicates due to splitting multi-allelic variants where they are also
+# called separately (have seen this with GATK HaplotypeCaller)
+duplicates <- variants %>%
+  count(ID, Amplicon, Chromosome, Position, Ref, Alt) %>%
+  filter(n > 1)
+
+multiallelic_duplicates <- variants %>%
+  semi_join(duplicates, by = c("ID", "Amplicon", "Chromosome", "Ref", "Alt")) %>%
+  filter(!Multiallelic)
+
+variants <- variants %>%
+  anti_join(multiallelic_duplicates, by = c("ID", "Amplicon", "Chromosome", "Ref", "Alt", "Multiallelic"))
+
+duplicates <- variants %>%
+  count(ID, Amplicon, Chromosome, Position, Ref, Alt) %>%
+  filter(n > 1)
+
+if (nrow(duplicates) > 0) {
+  stop("Duplicates remain in variant table after removing multi-allelic duplicates")
+}
+
+# write to output file
 write_tsv(variants, output_file, na = "")
 
