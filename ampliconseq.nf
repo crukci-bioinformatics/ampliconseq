@@ -487,10 +487,10 @@ process variant_effect_predictor {
         val one_annotation_per_variant
 
     output:
-        path variant_annotations
+        path vep_annotations
 
     shell:
-        variant_annotations = "vep_annotations.txt"
+        vep_annotations = "vep_annotations.txt"
         vep_pick_option = one_annotation_per_variant ? "--pick" : ""
         template "variant_effect_predictor.sh"
 }
@@ -500,14 +500,16 @@ process variant_effect_predictor {
 process annotate_variants {
 
     input:
-        tuple path(variants), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        tuple path(variants), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
 
     output:
-        path variant_annotations
+        path offset_from_primer_end_annotations, emit: offset_from_primer_end_annotations
+        path other_annotations, emit: other_annotations
 
     shell:
         java_mem = javaMemMB(task)
-        variant_annotations = "variant_annotations.txt"
+        offset_from_primer_end_annotations = "offset_from_primer_end_annotations.txt"
+        other_annotations = "other_annotations.txt"
         template "annotate_variants.sh"
 }
 
@@ -679,7 +681,7 @@ workflow {
     vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : Channel.fromPath("NO_FILE") )
 
     // additional annotations (sequence context, indel length, etc.)
-    annotate_variants(add_specific_variants.out.combine(reference_sequence))
+    annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence))
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
@@ -697,7 +699,7 @@ workflow {
         apply_background_noise_filters.out,
         blacklisted_variants,
         vep_annotations,
-        annotate_variants.out,
+        annotate_variants.out.other_annotations,
         reference_sequence_index
     )
 }
