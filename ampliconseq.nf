@@ -524,6 +524,7 @@ process summarize_variants {
         path variants
         path blacklisted_variants
         path vep_annotations
+        path offset_from_primer_end_annotations
         path other_annotations
         path reference_sequence_index
 
@@ -541,6 +542,7 @@ process summarize_variants {
             --variants ${variants} \
             --blacklist ${blacklisted_variants} \
             ${vep_annotations_option} \
+            --offset-from-primer-end-annotations ${offset_from_primer_end_annotations} \
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
             --output-prefix ${output_prefix} \
@@ -699,6 +701,7 @@ workflow {
         apply_background_noise_filters.out,
         blacklisted_variants,
         vep_annotations,
+        annotate_variants.out.offset_from_primer_end_annotations,
         annotate_variants.out.other_annotations,
         reference_sequence_index
     )

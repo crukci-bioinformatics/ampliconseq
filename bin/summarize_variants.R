@@ -24,6 +24,9 @@ option_list <- list(
   make_option(c("--vep-annotations"), dest = "vep_file",
               help = "TSV file containing Ensembl VEP annotations (optional; Chromosome, Position, Ref and Alt columns required)"),
 
+  make_option(c("--offset-from-primer-end-annotations"), dest = "offset_from_primer_end_annotations_file",
+              help = "TSV file containing annotations for offset from primer end (Amplicon, Chromosome, Position, Ref, Alt and Offset from primer end columns required)"),
+
   make_option(c("--other-annotations"), dest = "annotation_file",
               help = "TSV file containing additional annotations (Chromosome, Position, Ref and Alt columns required)"),
 
@@ -43,19 +46,30 @@ opt <- parse_args(option_parser)
 variants_file <- opt$variants_file
 blacklist_file <- opt$blacklist_file
 vep_file <- opt$vep_file
+offset_from_primer_end_annotations_file <- opt$offset_from_primer_end_annotations_file
 annotation_file <- opt$annotation_file
 reference_sequence_index_file <- opt$reference_sequence_index_file
 output_prefix <- opt$output_prefix
 minimum_depth <- opt$minimum_depth
 
+variants_file <- "variants_background_noise_filtered.txt"
+blacklist_file <- "blacklisted_variants.checked.txt"
+vep_file <- "vep_annotations.txt"
+offset_from_primer_end_annotations_file <- "offset_from_primer_end_annotations.txt"
+annotation_file <- "other_annotations.txt"
+reference_sequence_index_file <- "hsa.GRCh37_g1kp2.fa.fai"
+output_prefix <- "variants2"
+minimum_depth <- 100
+
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(blacklist_file)) stop("Blacklisted variants file must be specified")
 #if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
+if (is.null(offset_from_primer_end_annotations_file)) stop("Offset from primer end annotations file must be specified")
 if (is.null(annotation_file)) stop("Additional annotations file must be specified")
 if (is.null(reference_sequence_index_file)) stop("Reference sequence index file must be specified")
 if (is.null(output_prefix)) stop("Prefix for output files must be specified")
 
-if (!is.integer(minimum_depth) || minimum_depth <= 0) {
+if (!is.numeric(minimum_depth) || minimum_depth <= 0) {
   stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
 }
 
@@ -121,6 +135,10 @@ if (!is.null(vep_file)) {
   vep_annotations <- read_tsv(vep_file, col_types = cols(.default = "c"))
   variants <- left_join(variants, vep_annotations, by = c("Chromosome", "Position", "Ref", "Alt"))
 }
+
+# read offset from primer end annotations and add to the variant table
+offset_annotations <- read_tsv(offset_from_primer_end_annotations_file, col_types = cols(.default = "c"))
+variants <- left_join(variants, offset_annotations, by = c("Amplicon", "Chromosome", "Position", "Ref", "Alt"))
 
 # read additional annotations and add to the varaint table
 annotations <- read_tsv(annotation_file, col_types = cols(.default = "c"))
