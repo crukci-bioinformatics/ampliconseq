@@ -49,7 +49,7 @@ pileup_counts <- pileup_counts %>%
   mutate(Alt = str_remove(Alt, " count$")) %>%
   mutate(across(c(Count, Depth), parse_integer)) %>%
   mutate(`Allele fraction` = Count / Depth) %>%
-  transmute(ID, Amplicon, Chromosome, Position, Ref, Alt, `Depth (pileup)` = Depth, `Allele fraction (pileup)` = Count / Depth)
+  transmute(ID, Amplicon, Chromosome, Position, Ref, Alt, `Depth (pileup)` = Depth, `Alt depth (pileup)` = Count, `Allele fraction (pileup)` = Count / Depth)
 
 variants %>%
   left_join(pileup_counts, by = c("ID", "Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
