@@ -53,7 +53,7 @@ variants <- variants %>%
   mutate(Multiallelic = replace_na(Multiallelic, FALSE))
 
 # separate Ref and Alt allelic depths from AD column
-variants <- separate(variants, AD, into = c("Ref count", "Alt count"), sep = ",")
+variants <- separate(variants, AD, into = c("Ref depth", "Alt depth"), sep = ",")
 
 # round quality scores
 variants <- mutate(variants, Quality = round(parse_double(Quality)))
@@ -62,8 +62,8 @@ variants <- mutate(variants, Quality = round(parse_double(Quality)))
 # doesn't create an AF field
 if (all(is.na(variants$`Allele fraction`))) {
   variants <- variants %>%
-    mutate(across(c(`Ref count`, `Alt count`, Depth), parse_integer)) %>%
-    mutate(`Allele fraction` = round(`Alt count` / Depth, digits = 5))
+    mutate(across(c(`Ref depth`, `Alt depth`, Depth), parse_integer)) %>%
+    mutate(`Allele fraction` = round(`Alt depth` / Depth, digits = 5))
 }
 
 # add ID column
