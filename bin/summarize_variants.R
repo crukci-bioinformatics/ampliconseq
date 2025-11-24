@@ -37,7 +37,10 @@ option_list <- list(
               help = "Prefix for output variant summary files in CSV and TSV format"),
 
   make_option(c("--minimum-depth"), dest = "minimum_depth", type = "integer", default = 100,
-              help = "Minimum depth for high-confidence variant calls (default: %default)")
+              help = "Minimum depth for high-confidence variant calls (default: %default)"),
+
+  make_option(c("--minimum-alt-depth"), dest = "minimum_alt_depth", type = "integer", default = 5,
+              help = "Minimum alternate allele depth for high-confidence variant calls (default: %default)")
 )
 
 option_parser <- OptionParser(usage = "usage: %prog [options]", option_list = option_list, add_help_option = TRUE)
@@ -51,6 +54,7 @@ annotation_file <- opt$annotation_file
 reference_sequence_index_file <- opt$reference_sequence_index_file
 output_prefix <- opt$output_prefix
 minimum_depth <- opt$minimum_depth
+minimum_alt_depth <- opt$minimum_alt_depth
 
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(blacklist_file)) stop("Blacklisted variants file must be specified")
@@ -61,7 +65,11 @@ if (is.null(reference_sequence_index_file)) stop("Reference sequence index file 
 if (is.null(output_prefix)) stop("Prefix for output files must be specified")
 
 if (!is.numeric(minimum_depth) || minimum_depth <= 0) {
-  stop("Invalid minimum depth of coverage for positions to be included in fitting noise distribution")
+  stop("Invalid minimum depth of coverage for high-confidence variant calls")
+}
+
+if (!is.numeric(minimum_alt_depth) || minimum_alt_depth <= 0) {
+  stop("Invalid minimum alternate allele depth for high-confidence variant calls")
 }
 
 suppressPackageStartupMessages(library(tidyverse))
@@ -80,7 +88,7 @@ variants <- mutate(variants, across(c(`Allele fraction (pileup)`, `Position nois
 # assign confidence based on the number of replicates in which the variant is
 # called and passes filters and for which there was sufficient depth of coverage
 confidence <- variants %>%
-  mutate(Confident = Filters == "PASS" & Depth >= minimum_depth) %>%
+  mutate(Confident = Filters == "PASS" & Depth >= minimum_depth & `Alt depth` >= minimum_alt_depth) %>%
   group_by(Sample, Amplicon, Chromosome, Position, Ref, Alt) %>%
   summarize(ConfidentCount = sum(Confident), ReplicateCount = n(), .groups = "drop") %>%
   mutate(Confidence = ifelse(ConfidentCount == 0, "low", "medium")) %>%
@@ -98,8 +106,8 @@ replicates <- variants %>%
 variants <- variants %>%
   select(
     Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific,
-    ID, Filters, Quality, Depth, `Allele fraction`,
-    `Depth (pileup)`, `Allele fraction (pileup)`,
+    ID, Filters, Quality, Depth, `Alt depth`, `Allele fraction`,
+    `Depth (pileup)`, `Alt depth (pileup)`, `Allele fraction (pileup)`,
     `Position noise threshold`, `Library noise threshold`
   ) %>%
   left_join(confidence, by = c("Sample", "Amplicon", "Chromosome", "Position", "Ref", "Alt")) %>%
@@ -108,8 +116,10 @@ variants <- variants %>%
   select(
     Sample, Amplicon, Chromosome, Position, Ref, Alt, Specific, Confidence,
     starts_with("ID "), starts_with("Filters "), starts_with("Quality "),
-    matches("^Depth [0-9]+$"), matches("^Allele fraction [0-9]+$"),
-    starts_with("Depth (pileup) "), starts_with("Allele fraction (pileup) "),
+    matches("^Depth [0-9]+$"), matches("^Alt depth [0-9]+$"),
+    matches("^Allele fraction [0-9]+$"),
+    starts_with("Depth (pileup) "), starts_with("Alt depth (pileup) "),
+    starts_with("Allele fraction (pileup) "),
     `Position noise threshold`, starts_with("Library noise threshold ")
   )
 

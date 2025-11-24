@@ -546,7 +546,8 @@ process summarize_variants {
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
             --output-prefix ${output_prefix} \
-            --minimum-depth ${params.minimumDepthForHighConfidenceCalls}
+            --minimum-depth ${params.minimumDepthForHighConfidenceCalls} \
+            --minimum-alt-depth ${params.minimumAltDepthForHighConfidenceCalls}
         """
 }
 

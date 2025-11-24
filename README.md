@@ -364,6 +364,7 @@ chunkSizeForFittingBackgroundNoise       | 500000          | Maximum number of p
 readChunkSizeForFittingBackgroundNoise   | 100000          | Chunk size for reading pileup count records prior to chunking for fitting background noise distributions.
 sequenceContextLength                    | 5               | The length of the sequence context bordering the variant on the 5' and 3' ends to be included in the output table.
 minimumDepthForHighConfidenceCalls       | 100             | Minimum depth for high-confidence variant calls.
+minimumAltDepthForHighConfidenceCalls    | 5               | Minimum alternative allele depth for high-confidence variant calls.
 jvmOverhead                              | 192             | The memory overhead to allow for the Java Virtual Machine in addition to the memory specified for each Java process.
 
 #### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
@@ -621,10 +622,13 @@ runs are also making use of the same top-level work directory.
 The variants in the summary table output file are assigned a confidence that can
 be one of three values: high, medium or low. Factors that determining the
 confidence of a variant within a sample include whether the call is made without
-being filtered in all of the sample replicates and whether a specified minimum
-depth is reached within each replicate library. The minimum depth or coverage
-threshold can be specified in the configuration file using the
-minimumDepthForHighConfidenceCalls parameter; by default this is set to 100.
+being filtered in all of the sample replicates and whether the specified minimum
+depth and alternative allele depth are reached within each replicate library.
+The minimum depth or coverage threshold can be specified in the configuration
+file using the minimumDepthForHighConfidenceCalls parameter; by default this is
+set to 100. Similarly the minimum alternative allele depth can be specified with
+the minimumAltDepthForHighConfidenceCalls parameter which has a default setting
+of 5.
 
 Confidence | Criteria
 -----------|----------------------------------------
