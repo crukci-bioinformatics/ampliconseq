@@ -48,6 +48,10 @@ if (length(missing_columns) > 0) {
   stop("missing columns found in ", variants_file, ": '", str_c(missing_columns, collapse = "', '"), "'")
 }
 
+variants <- variants %>%
+  select(all_of(expected_columns)) %>%
+  distinct()
+
 # read and check amplicon details file
 amplicons <- read_tsv(amplicons_file, col_types = cols(
   TargetStart = "n",
