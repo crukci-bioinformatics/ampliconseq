@@ -52,15 +52,6 @@ reference_sequence_index_file <- opt$reference_sequence_index_file
 output_prefix <- opt$output_prefix
 minimum_depth <- opt$minimum_depth
 
-variants_file <- "variants_background_noise_filtered.txt"
-blacklist_file <- "blacklisted_variants.checked.txt"
-vep_file <- "vep_annotations.txt"
-offset_from_primer_end_annotations_file <- "offset_from_primer_end_annotations.txt"
-annotation_file <- "other_annotations.txt"
-reference_sequence_index_file <- "hsa.GRCh37_g1kp2.fa.fai"
-output_prefix <- "variants2"
-minimum_depth <- 100
-
 if (is.null(variants_file)) stop("Input variant file must be specified")
 if (is.null(blacklist_file)) stop("Blacklisted variants file must be specified")
 #if (is.null(vep_file)) stop("Ensembl VEP annotations file must be specified")
