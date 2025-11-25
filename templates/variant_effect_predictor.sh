@@ -21,8 +21,6 @@ vep \
     --dont_skip \
     !{vep_pick_option} \
     --everything \
-    --minimal \
-    --allele_number 1 \
     --no_escape
 
 vep_vcf_to_tabular.R \
