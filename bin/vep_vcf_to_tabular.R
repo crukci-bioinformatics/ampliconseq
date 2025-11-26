@@ -86,7 +86,7 @@ vep_annotations <- variants %>%
     `cDNA effect` = HGVSc,
     `Protein effect` = HGVSp,
     `1000 Genomes frequency` = AF,
-    `gnomAD frequency` = gnomAD_AF
+    `gnomAD frequency` = gnomADg_AF
   )
 
 # reformats the HGVS protein effect from Ensembl VEP replacing 3-letter amino
