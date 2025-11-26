@@ -1,7 +1,7 @@
 FROM maven:3.9.11
 
 LABEL authors="Matt Eldridge" \
-      version="1.0" \
+      version="1.1-snapshot" \
       description="Variant calling pipeline for amplicon sequencing data"
 
 RUN apt-get update && \
