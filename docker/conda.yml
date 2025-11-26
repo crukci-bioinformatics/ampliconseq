@@ -4,17 +4,17 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - conda-forge::r-base=4.1.1
-  - conda-forge::r-tidyverse=1.3.1
-  - conda-forge::r-optparse=1.7.1
-  - conda-forge::r-fitdistrplus=1.1_6
-  - conda-forge::r-nozzle.r1=1.1_1
-  - conda-forge::r-base64=2.0
-  - conda-forge::r-svglite=2.0.0
-  - conda-forge::r-rsvg=2.1.2
+  - conda-forge::r-base=4.3.3
+  - conda-forge::r-tidyverse=2.0.0
+  - conda-forge::r-optparse=1.7.5
+  - conda-forge::r-fitdistrplus=1.2_4
+  - conda-forge::r-nozzle.r1=1.1_1.1
+  - conda-forge::r-base64=2.0.2
+  - conda-forge::r-svglite=2.1.3
+  - conda-forge::r-rsvg=2.6.0
   - conda-forge::fonts-conda-forge=1
-  - bioconda::bioconductor-complexheatmap=2.10.0
-  - bioconda::gatk4=4.2.3.0
+  - bioconda::bioconductor-complexheatmap=2.18.0
+  - bioconda::gatk4=4.6.2.0
   - bioconda::vardict-java=1.8.3
-  - bioconda::ensembl-vep=104.3
-  - bioconda::bcftools=1.17
+  - bioconda::ensembl-vep=115.2
+  - bioconda::bcftools=1.21
