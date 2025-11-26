@@ -4,7 +4,7 @@ set -e -o pipefail
 
 if [ "!{variant_caller}" == "vardict" ]; then
 
-    JAVA_OPTS="-Xmx!{java_mem}m" vardict-java \
+    JAVA_OPTS="-Xmx!{java_mem}m -XX:-UsePerfData" vardict-java \
         -b !{amplicon_bam} \
         -G !{reference_sequence} \
         -N "!{id}" \
@@ -39,6 +39,24 @@ elif [ "!{variant_caller}" == "haplotypecaller" ]; then
         --filter-name "RMSMappingQuality" --filter-expression "MQ < 40.0" \
         --filter-name "MappingQualityRankSumTest" --filter-expression "MQRankSum < -12.5" \
         --output variants.vcf
+
+elif [ "!{variant_caller}" == "mutect2" ]; then
+
+    gatk --java-options "-Xmx!{java_mem}m" Mutect2 \
+        --input !{amplicon_bam} \
+        --intervals !{target_bed} \
+        --reference !{reference_sequence} \
+        --output mutect.vcf \
+        --max-reads-per-alignment-start !{params.maximumReadsPerAlignmentStart} \
+        --minimum-allele-fraction !{params.minimumAlleleFraction} \
+        --native-pair-hmm-threads 1 \
+        --force-active
+
+    gatk --java-options "-Xmx!{java_mem}m" FilterMutectCalls \
+        --variant mutect.vcf \
+        --reference !{reference_sequence} \
+        --output variants.vcf \
+        --min-allele-fraction !{params.minimumAlleleFraction}
 
 else
     echo "Unrecognized variant caller: !{variant_caller}" >&2
