@@ -21,7 +21,7 @@ if (params.help) {
 // -----------------------------------------------------------------------------
 
 variant_caller = params.variantCaller.toLowerCase().replaceAll(/[ _\\-]/, "")
-def supported_variant_callers = [ "vardict", "haplotypecaller" ]
+def supported_variant_callers = [ "vardict", "haplotypecaller", "mutect2" ]
 if (!supported_variant_callers.contains(variant_caller)) {
     exit 1, "Unsupported variant caller - should be one of " + supported_variant_callers
 }
@@ -760,7 +760,7 @@ def helpMessage() {
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
             --outputDir                Directory to which output files are written
-            --variantCaller            The variant caller (VarDict or HaplotypeCaller)
+            --variantCaller            The variant caller (VarDict, HaplotypeCaller or Mutect2)
             --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
 
         Alternatively, override settings using a configuration file such as the
