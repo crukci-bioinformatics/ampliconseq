@@ -37,7 +37,8 @@ Variant calling pipeline for amplicon sequencing data.
 *ampliconseq* is an analysis pipeline for calling single nucleotide variants
 (SNVs) and indels in targeted amplicon sequencing data. Variants are called
 using [GATK HaplotypeCaller](https://gatk.broadinstitute.org), preferred for
-germline or clonal somatic mutations, especially in FFPE samples, or
+germline or clonal somatic mutations, especially in FFPE samples,
+[GATK Mutect2](https://gatk.broadinstitute.org), or
 [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava) which can identify low
 allele fraction SNVs in circulating tumour DNA from plasma samples. In addition
 to caller-specific filters, the pipeline models the background substitution
@@ -57,7 +58,7 @@ containing sequence reads aligned to the reference genome.
 
 The ampliconseq pipeline has the following features:
 
-* Choice of variant callers: [GATK HaplotypeCaller](https://gatk.broadinstitute.org) and [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava)
+* Choice of variant callers: [GATK HaplotypeCaller](https://gatk.broadinstitute.org), [GATK Mutect2](https://gatk.broadinstitute.org) or [VarDict](https://github.com/AstraZeneca-NGS/VarDictJava)
 * Alignment and coverage QC report using metrics calculated by [Picard](https://broadinstitute.github.io/picard) CollectAlignmentSummaryMetrics and CollectTargetedPcrMetrics
 * Annotation of variants using [Ensembl Variant Effect Predictor (VEP)](https://www.ensembl.org/info/docs/tools/vep/index.html)
 * Support for overlapping amplicon targets by partitioning reads prior to variant calling
@@ -351,9 +352,9 @@ vepSpecies                               | homo_sapiens    | The species name of
 vepAssembly                              | GRCh37          | The genome assembly of the VEP annotation cache.
 vepPickOneAnnotationPerVariant           | true            | Pick one annotation for each annotation using VEP --pick option.
 outputDir                                |                 | Directory to which output files are written or the launch directory if not specified.
-variantCaller                            | VarDict         | The variant caller (VarDict or HaplotypeCaller).
+variantCaller                            | VarDict         | The variant caller (VarDict, HaplotypeCaller or Mutect2).
 minimumAlleleFraction                    | 0.01            | Lower allele fraction limit for detection of variants (for variant callers that provide this option only).
-maximumReadsPerAlignmentStart            | 2500            | Maximum number of reads to retain per alignment start position; reads above this threshold will be downsampled (specific to GATK HaplotypeCaller).
+maximumReadsPerAlignmentStart            | 2500            | Maximum number of reads to retain per alignment start position; reads above this threshold will be downsampled (specific to GATK HaplotypeCaller and Mutect2).
 minimumMappingQualityForPileup           | 1               | Minimum mapping quality of reads to include in the pileup, i.e. when computing depths and allele fractions.
 minimumBaseQualityForPileup              | 10              | Minimum base quality at a given locus for reads to include in the pileup, i.e. when computing depths and allele fractions.
 minimumDepthForBackgroundNoise           | 100             | Minimum depth of coverage at a given locus for a library to be included when computing background noise.
