@@ -80,7 +80,7 @@ at the
 
 ## <a name="quickstart">Quickstart guide</a>
 
-1. Install Nextflow (Java 8 or later required).
+1. Install Nextflow (Java 17 or later required).
 
         curl -s https://get.nextflow.io | bash
 
@@ -141,8 +141,8 @@ Predictor, R and various R packages, are packaged as a
 that can be run with either [Docker](https://www.docker.com) or
 [Singularity](https://sylabs.io/docs). The container is also downloaded by
 Nextflow. The only requirements are a recent version of Nextflow and either
-Docker or Singularity. Nextflow requires Java 8 or above and can be installed as
-shown in the Quickstart section above (see the
+Docker or Singularity. Nextflow requires Java 17 or above and can be installed
+as shown in the Quickstart section above (see the
 [Nextflow documentation](https://www.nextflow.io/docs/latest/index.html) for
 more details).
 
