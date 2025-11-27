@@ -153,12 +153,12 @@ Using the latest stable
 of ampliconseq is recommended. A specific version of ampliconseq can be
 installed using `nextflow pull` with the `-revision` (or `-r`) option:
 
-    nextflow pull crukci-bioinformatics/ampliconseq -r 1.0.0
+    nextflow pull crukci-bioinformatics/ampliconseq -r 1.0
 
 When a specific version of ampliconseq is installed in this way the revision
 also needs to be specified when running the pipeline using `nextflow run`.
 
-    nextflow run crukci-bioinformatics/ampliconseq -r 1.0.0 -c ampliconseq.config
+    nextflow run crukci-bioinformatics/ampliconseq -r 1.0 -c ampliconseq.config
 
 Run `nextflow info` to view details about the currently installed version.
 
@@ -223,7 +223,7 @@ using the [HTSJDK](https://github.com/samtools/htsjdk) library. These are
 available from the
 [releases](https://github.com/crukci-bioinformatics/ampliconseq/releases)
 page on the GitHub repository; download and unpack the tarball file named
-ampliconseq-1.0.0-tools.tar.gz, substituting the version number as appropriate,
+ampliconseq-1.0-tools.tar.gz, substituting the version number as appropriate,
 and ensure that the `bin` subdirectory is available on the `PATH`.
 
 ---
