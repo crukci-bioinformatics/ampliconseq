@@ -595,11 +595,11 @@ workflow {
 
     amplicon_bed_files = create_non_overlapping_amplicon_groups.out.amplicon_bed_files
         .flatten()
-        .map { tuple((it =~ /.*\.(\d+)\.bed$/)[0][1], it) }
+        .map { bed -> tuple((bed =~ /.*\.(\d+)\.bed$/)[0][1], bed) }
 
     target_bed_files = create_non_overlapping_amplicon_groups.out.target_bed_files
         .flatten()
-        .map { tuple((it =~ /.*\.(\d+)\.bed$/)[0][1], it) }
+        .map { bed -> tuple((bed =~ /.*\.(\d+)\.bed$/)[0][1], bed) }
 
     bed_files = amplicon_bed_files.join(target_bed_files)
 
@@ -607,7 +607,7 @@ workflow {
 
     // collect amplicon coverage data for all samples
     amplicon_coverage = extract_amplicon_regions.out.coverage
-        .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { it.name })
+        .collectFile(name: "amplicon_coverage.txt", keepHeader: true, sort: { file -> file.name })
 
     amplicon_bams = extract_amplicon_regions.out.bam.combine(reference_sequence)
 
@@ -616,9 +616,9 @@ workflow {
 
     // collect Picard metrics for all samples
     alignment_metrics = picard_metrics.out.alignment_metrics
-        .collectFile(name: "alignment_metrics.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
+        .collectFile(name: "alignment_metrics.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}/qc")
     targeted_pcr_metrics = picard_metrics.out.targeted_pcr_metrics
-        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}/qc")
+        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}/qc")
 
     // generate pileup counts
     pileup_counts(amplicon_bams)
@@ -631,7 +631,7 @@ workflow {
 
     // collect pileup counts for all libraries
     collected_pileup_counts = annotate_and_sort_pileup_counts.out
-        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { it.name }, storeDir: "${params.outputDir}")
+        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}")
 
     // call variants
     call_variants(amplicon_bams)
