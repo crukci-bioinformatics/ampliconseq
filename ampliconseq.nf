@@ -835,7 +835,11 @@ workflow {
         .combine(reference_sequence_index)
         .combine(reference_sequence_dictionary)
 
-    vep_cache_dir = (params.vepAnnotation ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : channel.empty())
+    // normalize boolean parameters that may be supplied as strings on the command
+    // line (the strict parser does not cast command-line values to booleans)
+    vep_annotation_enabled = params.vepAnnotation.toString().toBoolean()
+
+    vep_cache_dir = (vep_annotation_enabled ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : channel.empty())
 
     // create groups of non-overlapping amplicons
     create_non_overlapping_amplicon_groups(amplicon_details, reference_sequence_index)
@@ -941,12 +945,12 @@ workflow {
         add_specific_variants.out,
         reference_sequence_index,
         vep_cache_dir,
-        params.vepPickOneAnnotationPerVariant,
+        params.vepPickOneAnnotationPerVariant.toString().toBoolean(),
         params.vepSpecies,
         params.vepAssembly
     )
 
-    vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : channel.fromPath("NO_FILE") )
+    vep_annotations = ( vep_annotation_enabled ? variant_effect_predictor.out : channel.fromPath("NO_FILE") )
 
     // additional annotations (sequence context, indel length, etc.)
     annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence), params.sequenceContextLength)
