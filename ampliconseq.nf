@@ -10,9 +10,9 @@ nextflow.enable.dsl = 2
 
 // returns the heap size to be given to a Java task based on the task memory,
 // allowing for some overhead for the JVM
-def javaMemMB(task, jvmOverhead)
+def javaMemMB(task)
 {
-    return task.memory.toMega() - jvmOverhead
+    return task.memory.toMega() - task.ext.java_overhead_size
 }
 
 // normalized name of the configured variant caller (lower case, no spaces,
@@ -112,14 +112,13 @@ process picard_metrics {
 
     input:
         tuple val(id), val(prefix), path(bam), path(amplicon_groups), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
-        val jvm_overhead
 
     output:
         path alignment_metrics, emit: alignment_metrics
         path targeted_pcr_metrics, emit: targeted_pcr_metrics
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         alignment_metrics = "${prefix}.alignment_metrics.txt"
         targeted_pcr_metrics = "${prefix}.targeted_pcr_metrics.txt"
         """
@@ -179,14 +178,13 @@ process extract_amplicon_regions {
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(bam)
         val maximum_distance
         val require_both_ends_anchored
-        val jvm_overhead
 
     output:
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), emit: bam
         path(amplicon_coverage), emit: coverage
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         amplicon_bam = "${prefix}.${amplicon_group}.bam"
         amplicon_bai = "${prefix}.${amplicon_group}.bai"
         amplicon_coverage = "${prefix}.${amplicon_group}.amplicon_coverage.txt"
@@ -218,13 +216,12 @@ process call_variants {
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
         val minimum_allele_fraction
         val maximum_reads_per_alignment_start
-        val jvm_overhead
 
     output:
         tuple val(id), val(prefix), path(vcf), emit: vcf
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         variant_caller = normalizedVariantCaller()
         vcf = "${prefix}.${amplicon_group}.vcf"
         """
@@ -304,14 +301,13 @@ process collate_variants {
 
     input:
         tuple val(id), val(prefix), path(amplicon_vcfs), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
-        val jvm_overhead
 
     output:
         tuple val(id), path(vcf), emit: vcf
         path variants, emit: variants
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         vcf = "${prefix}.vcf"
         variants = "${prefix}.variants.txt"
         """
@@ -379,13 +375,12 @@ process pileup_counts {
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
         val minimum_mapping_quality
         val minimum_base_quality
-        val jvm_overhead
 
     output:
         tuple val(id), val(prefix), path(pileup_counts)
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         pileup_counts = "${prefix}.${amplicon_group}.pileup_counts.txt"
         """
         JAVA_OPTS="-Xmx${java_mem}m" pileup-counts \\
@@ -719,14 +714,13 @@ process annotate_variants {
     input:
         tuple path(variants), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
         val sequence_context_length
-        val jvm_overhead
 
     output:
         path offset_from_primer_end_annotations, emit: offset_from_primer_end_annotations
         path other_annotations, emit: other_annotations
 
     script:
-        java_mem = javaMemMB(task, jvm_overhead)
+        java_mem = javaMemMB(task)
         offset_from_primer_end_annotations = "offset_from_primer_end_annotations.txt"
         other_annotations = "other_annotations.txt"
         """
@@ -869,7 +863,7 @@ workflow {
 
     bed_files = amplicon_bed_files.join(target_bed_files)
 
-    extract_amplicon_regions(bed_files.combine(bams), params.maxDistanceFromAmpliconEnd, params.requireBothEndsAnchored, params.jvmOverhead)
+    extract_amplicon_regions(bed_files.combine(bams), params.maxDistanceFromAmpliconEnd, params.requireBothEndsAnchored)
 
     // collect amplicon coverage data for all samples
     amplicon_coverage = extract_amplicon_regions.out.coverage
@@ -878,7 +872,7 @@ workflow {
     amplicon_bams = extract_amplicon_regions.out.bam.combine(reference_sequence)
 
     // Picard alignment summary metrics
-    picard_metrics(bams.combine(amplicon_groups).combine(reference_sequence), params.jvmOverhead)
+    picard_metrics(bams.combine(amplicon_groups).combine(reference_sequence))
 
     // collect Picard metrics for all samples
     alignment_metrics = picard_metrics.out.alignment_metrics
@@ -887,7 +881,7 @@ workflow {
         .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { file -> file.name })
 
     // generate pileup counts
-    pileup_counts(amplicon_bams, params.minimumMappingQualityForPileup, params.minimumBaseQualityForPileup, params.jvmOverhead)
+    pileup_counts(amplicon_bams, params.minimumMappingQualityForPileup, params.minimumBaseQualityForPileup)
 
     // collate pileup counts for each library
     collected_pileup_counts = pileup_counts.out.collectFile(keepHeader: true) { item -> [ "${item[1]}.pileup_counts.txt", item[2] ] }
@@ -900,10 +894,10 @@ workflow {
         .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name })
 
     // call variants
-    call_variants(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart, params.jvmOverhead)
+    call_variants(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart)
 
     // merge amplicon group VCF files for each library and convert to tabular format
-    collate_variants(call_variants.out.groupTuple(by: [0, 1]).combine(reference_sequence), params.jvmOverhead)
+    collate_variants(call_variants.out.groupTuple(by: [0, 1]).combine(reference_sequence))
 
     // collect variant calls for all samples
     called_variants = collate_variants.out.variants
@@ -955,7 +949,7 @@ workflow {
     vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : channel.fromPath("NO_FILE") )
 
     // additional annotations (sequence context, indel length, etc.)
-    annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence), params.sequenceContextLength, params.jvmOverhead)
+    annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence), params.sequenceContextLength)
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
