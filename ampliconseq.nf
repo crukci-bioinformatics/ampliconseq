@@ -324,7 +324,7 @@ process mutect2 {
 }
 
 
-// annotate variant calls with the identifiers of the amplicons they fall within
+// annotate variant calls with amplicon IDs
 process annotate_amplicon_variants {
     tag "${id}"
 
