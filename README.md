@@ -181,7 +181,7 @@ master branch:
 
 ### <a name="requirements">Requirements</a>
 
-* [Nextflow](https://www.nextflow.io) 20.10.0 or above
+* [Nextflow](https://www.nextflow.io) 25.10.0 or above
 * [Singularity](https://sylabs.io/docs) or [Docker](https://www.docker.com)
 
 Dependencies, including GATK, VarDict, Ensembl VEP, R and various R packages,
