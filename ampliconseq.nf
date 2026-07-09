@@ -176,6 +176,8 @@ process extract_amplicon_regions {
 
     input:
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(bam)
+        val maximum_distance
+        val require_both_ends_anchored
 
     output:
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), emit: bam
@@ -195,8 +197,8 @@ process extract_amplicon_regions {
             --amplicon-intervals ${amplicon_bed} \\
             --output "${amplicon_bam}" \\
             --coverage "${amplicon_coverage}" \\
-            --maximum-distance ${params.maxDistanceFromAmpliconEnd} \\
-            --require-both-ends-anchored=${params.requireBothEndsAnchored} \\
+            --maximum-distance ${maximum_distance} \\
+            --require-both-ends-anchored=${require_both_ends_anchored} \\
             --unmark-duplicate-reads
         """
 }
@@ -212,6 +214,8 @@ process call_variants {
 
     input:
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        val minimum_allele_fraction
+        val maximum_reads_per_alignment_start
 
     output:
         tuple val(id), val(prefix), path(vcf), emit: vcf
@@ -229,7 +233,7 @@ process call_variants {
                 -b ${amplicon_bam} \\
                 -G ${reference_sequence} \\
                 -N "${id}" \\
-                -f ${params.minimumAlleleFraction} \\
+                -f ${minimum_allele_fraction} \\
                 -z -c 1 -S 2 -E 3 -g 4 ${target_bed} \\
                 > vardict.txt
 
@@ -238,7 +242,7 @@ process call_variants {
                 > vardict.teststrandbias.txt
 
             cat vardict.teststrandbias.txt \\
-                | var2vcf_valid.pl -N "${id}" -E -P 0 -f ${params.minimumAlleleFraction} \\
+                | var2vcf_valid.pl -N "${id}" -E -P 0 -f ${minimum_allele_fraction} \\
                 > variants.vcf
 
         elif [ "${variant_caller}" == "haplotypecaller" ]; then
@@ -248,7 +252,7 @@ process call_variants {
                 --intervals ${target_bed} \\
                 --reference ${reference_sequence} \\
                 --output haplotypecaller.vcf \\
-                --max-reads-per-alignment-start ${params.maximumReadsPerAlignmentStart} \\
+                --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
                 --native-pair-hmm-threads 1 \\
                 --force-active
 
@@ -268,8 +272,8 @@ process call_variants {
                 --intervals ${target_bed} \\
                 --reference ${reference_sequence} \\
                 --output mutect.vcf \\
-                --max-reads-per-alignment-start ${params.maximumReadsPerAlignmentStart} \\
-                --minimum-allele-fraction ${params.minimumAlleleFraction} \\
+                --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
+                --minimum-allele-fraction ${minimum_allele_fraction} \\
                 --native-pair-hmm-threads 1 \\
                 --force-active
 
@@ -277,7 +281,7 @@ process call_variants {
                 --variant mutect.vcf \\
                 --reference ${reference_sequence} \\
                 --output variants.vcf \\
-                --min-allele-fraction ${params.minimumAlleleFraction}
+                --min-allele-fraction ${minimum_allele_fraction}
 
         else
             echo "Unrecognized variant caller: ${variant_caller}" >&2
@@ -371,6 +375,8 @@ process pileup_counts {
 
     input:
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        val minimum_mapping_quality
+        val minimum_base_quality
 
     output:
         tuple val(id), val(prefix), path(pileup_counts)
@@ -385,8 +391,8 @@ process pileup_counts {
             --amplicon-intervals ${target_bed} \\
             --reference-sequence ${reference_sequence} \\
             --output "${pileup_counts}" \\
-            --minimum-mapping-quality ${params.minimumMappingQualityForPileup} \\
-            --minimum-base-quality ${params.minimumBaseQualityForPileup}
+            --minimum-mapping-quality ${minimum_mapping_quality} \\
+            --minimum-base-quality ${minimum_base_quality}
         """
 }
 
@@ -612,6 +618,12 @@ process compute_background_noise_thresholds {
     input:
         path pileup_counts
         path variants
+        val minimum_depth
+        val exclude_highest_fraction
+        val maximum_allele_fraction
+        val minimum_number_for_fitting
+        val chunk_size
+        val read_chunk_size
 
     output:
         path position_noise_thresholds, emit: position_noise_thresholds
@@ -626,12 +638,12 @@ process compute_background_noise_thresholds {
             --variants ${variants} \
             --position-thresholds ${position_noise_thresholds} \
             --library-thresholds ${library_noise_thresholds} \
-            --minimum-depth ${params.minimumDepthForBackgroundNoise} \
-            --exclude-highest-fraction ${params.excludeHighestFractionForBackgroundNoise} \
-            --maximum-allele-fraction ${params.maximumAlleleFractionForBackgroundNoise} \
-            --minimum-number-for-fitting ${params.minimumNumberForFittingBackgroundNoise} \
-            --chunk-size ${params.chunkSizeForFittingBackgroundNoise} \
-            --read-chunk-size ${params.readChunkSizeForFittingBackgroundNoise}
+            --minimum-depth ${minimum_depth} \
+            --exclude-highest-fraction ${exclude_highest_fraction} \
+            --maximum-allele-fraction ${maximum_allele_fraction} \
+            --minimum-number-for-fitting ${minimum_number_for_fitting} \
+            --chunk-size ${chunk_size} \
+            --read-chunk-size ${read_chunk_size}
         """
 }
 
@@ -670,6 +682,8 @@ process variant_effect_predictor {
         path reference_sequence_index
         path vep_cache_dir
         val one_annotation_per_variant
+        val vep_species
+        val vep_assembly
 
     output:
         path vep_annotations
@@ -692,8 +706,8 @@ process variant_effect_predictor {
             --vcf \\
             --offline \\
             --dir_cache ${vep_cache_dir} \\
-            --species ${params.vepSpecies} \\
-            --assembly ${params.vepAssembly} \\
+            --species ${vep_species} \\
+            --assembly ${vep_assembly} \\
             --buffer_size 100 \\
             --no_stats \\
             --dont_skip \\
@@ -713,6 +727,7 @@ process annotate_variants {
 
     input:
         tuple path(variants), path(amplicons), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        val sequence_context_length
 
     output:
         path offset_from_primer_end_annotations, emit: offset_from_primer_end_annotations
@@ -734,7 +749,7 @@ process annotate_variants {
             --input distinct_variants.vcf \\
             --output distinct_variants.annotated.vcf \\
             --reference-sequence ${reference_sequence} \\
-            --sequence-context-length ${params.sequenceContextLength}
+            --sequence-context-length ${sequence_context_length}
 
         gatk --java-options "-Xmx${java_mem}m" VariantsToTable \\
             --variant distinct_variants.annotated.vcf \\
@@ -856,7 +871,7 @@ workflow {
 
     bed_files = amplicon_bed_files.join(target_bed_files)
 
-    extract_amplicon_regions(bed_files.combine(bams))
+    extract_amplicon_regions(bed_files.combine(bams), params.maxDistanceFromAmpliconEnd, params.requireBothEndsAnchored)
 
     // collect amplicon coverage data for all samples
     amplicon_coverage = extract_amplicon_regions.out.coverage
@@ -874,7 +889,7 @@ workflow {
         .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}/qc")
 
     // generate pileup counts
-    pileup_counts(amplicon_bams)
+    pileup_counts(amplicon_bams, params.minimumMappingQualityForPileup, params.minimumBaseQualityForPileup)
 
     // collate pileup counts for each library
     collected_pileup_counts = pileup_counts.out.collectFile(keepHeader: true) { item -> [ "${item[1]}.pileup_counts.txt", item[2] ] }
@@ -887,7 +902,7 @@ workflow {
         .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}")
 
     // call variants
-    call_variants(amplicon_bams)
+    call_variants(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart)
 
     // merge amplicon group VCF files for each library and convert to tabular format
     collate_variants(call_variants.out.groupTuple(by: [0, 1]).combine(reference_sequence))
@@ -930,22 +945,32 @@ workflow {
     add_pileup_allele_fractions(add_specific_variants.out, collected_pileup_counts)
 
     // annotate variants using Ensembl VEP
-    one_annotation_per_variant = channel.value(params.vepPickOneAnnotationPerVariant)
     variant_effect_predictor(
         add_specific_variants.out,
         reference_sequence_index,
         vep_cache_dir,
-        one_annotation_per_variant
+        params.vepPickOneAnnotationPerVariant,
+        params.vepSpecies,
+        params.vepAssembly
     )
 
     vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : channel.fromPath("NO_FILE") )
 
     // additional annotations (sequence context, indel length, etc.)
-    annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence))
+    annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence), params.sequenceContextLength)
 
     // fit distributions for substitution allele fractions from pileup counts
     // and compute background noise thresholds
-    compute_background_noise_thresholds(collected_pileup_counts, add_specific_variants.out)
+    compute_background_noise_thresholds(
+        collected_pileup_counts,
+        add_specific_variants.out,
+        params.minimumDepthForBackgroundNoise,
+        params.excludeHighestFractionForBackgroundNoise,
+        params.maximumAlleleFractionForBackgroundNoise,
+        params.minimumNumberForFittingBackgroundNoise,
+        params.chunkSizeForFittingBackgroundNoise,
+        params.readChunkSizeForFittingBackgroundNoise
+    )
 
     // apply background noise filters
     apply_background_noise_filters(
