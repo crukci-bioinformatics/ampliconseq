@@ -351,7 +351,6 @@ vepCacheDir                              | /reference_data/vep_cache | Directory
 vepSpecies                               | homo_sapiens    | The species name of the VEP annotation cache.
 vepAssembly                              | GRCh37          | The genome assembly of the VEP annotation cache.
 vepPickOneAnnotationPerVariant           | true            | Pick one annotation for each annotation using VEP --pick option.
-outputDir                                |                 | Directory to which output files are written or the launch directory if not specified.
 variantCaller                            | VarDict         | The variant caller (VarDict, HaplotypeCaller or Mutect2).
 minimumAlleleFraction                    | 0.01            | Lower allele fraction limit for detection of variants (for variant callers that provide this option only).
 maximumReadsPerAlignmentStart            | 2500            | Maximum number of reads to retain per alignment start position; reads above this threshold will be downsampled (specific to GATK HaplotypeCaller and Mutect2).
@@ -421,10 +420,12 @@ params {
     vepCacheDir           = "/data/reference_data/vep_cache"
     vepSpecies            = "homo_sapiens"
     vepAssembly           = "GRCh37"
-    outputDir             = "results"
     variantCaller         = "vardict"
     minimumAlleleFraction = 0.01
 }
+
+// the output directory is a top-level setting, not a pipeline parameter
+outputDir = "results"
 ```
 
 This takes the form of a `name = value` syntax with a separate line for each
@@ -612,11 +613,13 @@ task directory contains hidden files with names such as `.command.sh` and
 `.command.out`, inspection of which can be helpful when debugging pipeline runs.
 
 Intermediate files created during a pipeline execution are written to the work
-directories. The final outputs are written either to the launch directory or the
-directory specified using the `--outputDir` command line option or the
-`outputDir` parameter. The `work` directory (and all its subdirectories) can be
-deleted on successful completion of the pipeline unless other Nextflow pipeline
-runs are also making use of the same top-level work directory.
+directories. The final outputs are written to the output directory, which
+defaults to a `results` subdirectory of the launch directory and can be changed
+using the `-output-dir` command line option or by setting `outputDir` in a
+configuration file (outside the `params` block). The `work` directory (and all
+its subdirectories) can be deleted on successful completion of the pipeline
+unless other Nextflow pipeline runs are also making use of the same top-level
+work directory.
 
 ## <a name="confidence">Confidence level for variants called in replicate libraries</a>
 
