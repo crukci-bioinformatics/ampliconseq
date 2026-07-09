@@ -5,29 +5,6 @@ nextflow.enable.dsl = 2
 
 
 // -----------------------------------------------------------------------------
-// show settings and/or help
-// -----------------------------------------------------------------------------
-
-printParameterSummary()
-
-if (params.help) {
-    helpMessage()
-    exit 0
-}
-
-
-// -----------------------------------------------------------------------------
-// check parameters
-// -----------------------------------------------------------------------------
-
-variant_caller = params.variantCaller.toLowerCase().replaceAll(/[ _\\-]/, "")
-def supported_variant_callers = [ "vardict", "haplotypecaller", "mutect2" ]
-if (!supported_variant_callers.contains(variant_caller)) {
-    exit 1, "Unsupported variant caller - should be one of " + supported_variant_callers
-}
-
-
-// -----------------------------------------------------------------------------
 // functions
 // -----------------------------------------------------------------------------
 
@@ -36,6 +13,19 @@ if (!supported_variant_callers.contains(variant_caller)) {
 def javaMemMB(task)
 {
     return task.memory.toMega() - params.jvmOverhead
+}
+
+// normalized name of the configured variant caller (lower case, no spaces,
+// underscores or hyphens)
+def normalizedVariantCaller()
+{
+    return params.variantCaller.toLowerCase().replaceAll(/[ _\\-]/, "")
+}
+
+// the set of supported variant callers
+def supportedVariantCallers()
+{
+    return [ "vardict", "haplotypecaller", "mutect2" ]
 }
 
 
@@ -160,6 +150,7 @@ process call_variants {
 
     shell:
         java_mem = javaMemMB(task)
+        variant_caller = normalizedVariantCaller()
         vcf = "${prefix}.${amplicon_group}.vcf"
         template "call_variants.sh"
 }
@@ -557,6 +548,19 @@ process summarize_variants {
 // -----------------------------------------------------------------------------
 
 workflow {
+
+    // show settings and/or help
+    printParameterSummary()
+
+    if (params.help) {
+        helpMessage()
+        return
+    }
+
+    // check parameters
+    if (!supportedVariantCallers().contains(normalizedVariantCaller())) {
+        error "Unsupported variant caller - should be one of " + supportedVariantCallers()
+    }
 
     sample_sheet = channel.fromPath(params.samples, checkIfExists: true)
     amplicon_details = channel.fromPath(params.amplicons, checkIfExists: true)
