@@ -365,7 +365,6 @@ readChunkSizeForFittingBackgroundNoise   | 100000          | Chunk size for read
 sequenceContextLength                    | 5               | The length of the sequence context bordering the variant on the 5' and 3' ends to be included in the output table.
 minimumDepthForHighConfidenceCalls       | 100             | Minimum depth for high-confidence variant calls.
 minimumAltDepthForHighConfidenceCalls    | 5               | Minimum alternative allele depth for high-confidence variant calls.
-jvmOverhead                              | 192             | The memory overhead to allow for the Java Virtual Machine in addition to the memory specified for each Java process.
 
 #### <a name="configuration_using_command_line_args">Configuration using command line arguments</a>
 
