@@ -201,8 +201,90 @@ process extract_amplicon_regions {
 }
 
 
-// call variants and annotate with amplicon id
-process call_variants {
+// call variants with VarDict
+process vardict {
+    tag "${id}"
+
+    memory { 4.GB * task.attempt }
+    time { 8.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        val minimum_allele_fraction
+
+    output:
+        tuple val(amplicon_group), path(target_bed), val(id), val(prefix), path(vcf), emit: vcf
+
+    script:
+        java_mem = javaMemMB(task)
+        vcf = "${prefix}.${amplicon_group}.vardict.vcf"
+        """
+        set -e -o pipefail
+
+        JAVA_OPTS="-Xmx${java_mem}m -XX:-UsePerfData" vardict-java \\
+            -b ${amplicon_bam} \\
+            -G ${reference_sequence} \\
+            -N "${id}" \\
+            -f ${minimum_allele_fraction} \\
+            -z -c 1 -S 2 -E 3 -g 4 ${target_bed} \\
+            > vardict.txt
+
+        cat vardict.txt \\
+            | teststrandbias.R \\
+            > vardict.teststrandbias.txt
+
+        cat vardict.teststrandbias.txt \\
+            | var2vcf_valid.pl -N "${id}" -E -P 0 -f ${minimum_allele_fraction} \\
+            > "${vcf}"
+        """
+}
+
+
+// call variants with GATK HaplotypeCaller
+process haplotypecaller {
+    tag "${id}"
+
+    memory { 4.GB * task.attempt }
+    time { 8.hour * task.attempt }
+    maxRetries 2
+
+    input:
+        tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
+        val maximum_reads_per_alignment_start
+
+    output:
+        tuple val(amplicon_group), path(target_bed), val(id), val(prefix), path(vcf), emit: vcf
+
+    script:
+        java_mem = javaMemMB(task)
+        vcf = "${prefix}.${amplicon_group}.haplotypecaller.vcf"
+        """
+        set -e -o pipefail
+
+        gatk --java-options "-Xmx${java_mem}m" HaplotypeCaller \\
+            --input ${amplicon_bam} \\
+            --intervals ${target_bed} \\
+            --reference ${reference_sequence} \\
+            --output haplotypecaller.vcf \\
+            --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
+            --native-pair-hmm-threads 1 \\
+            --force-active
+
+        gatk --java-options "-Xmx${java_mem}m" VariantFiltration \\
+            --variant haplotypecaller.vcf \\
+            --reference ${reference_sequence} \\
+            --filter-name "QualByDepth" --filter-expression "QD < 2.0" \\
+            --filter-name "StrandOddsRatio" --filter-expression "SOR > 3.0" \\
+            --filter-name "RMSMappingQuality" --filter-expression "MQ < 40.0" \\
+            --filter-name "MappingQualityRankSumTest" --filter-expression "MQRankSum < -12.5" \\
+            --output "${vcf}"
+        """
+}
+
+
+// call variants with GATK Mutect2
+process mutect2 {
     tag "${id}"
 
     memory { 4.GB * task.attempt }
@@ -215,80 +297,57 @@ process call_variants {
         val maximum_reads_per_alignment_start
 
     output:
-        tuple val(id), val(prefix), path(vcf), emit: vcf
+        tuple val(amplicon_group), path(target_bed), val(id), val(prefix), path(vcf), emit: vcf
 
     script:
         java_mem = javaMemMB(task)
-        variant_caller = normalizedVariantCaller()
-        vcf = "${prefix}.${amplicon_group}.vcf"
+        vcf = "${prefix}.${amplicon_group}.mutect2.vcf"
         """
         set -e -o pipefail
 
-        if [ "${variant_caller}" == "vardict" ]; then
+        gatk --java-options "-Xmx${java_mem}m" Mutect2 \\
+            --input ${amplicon_bam} \\
+            --intervals ${target_bed} \\
+            --reference ${reference_sequence} \\
+            --output mutect.vcf \\
+            --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
+            --minimum-allele-fraction ${minimum_allele_fraction} \\
+            --native-pair-hmm-threads 1 \\
+            --force-active
 
-            JAVA_OPTS="-Xmx${java_mem}m -XX:-UsePerfData" vardict-java \\
-                -b ${amplicon_bam} \\
-                -G ${reference_sequence} \\
-                -N "${id}" \\
-                -f ${minimum_allele_fraction} \\
-                -z -c 1 -S 2 -E 3 -g 4 ${target_bed} \\
-                > vardict.txt
+        gatk --java-options "-Xmx${java_mem}m" FilterMutectCalls \\
+            --variant mutect.vcf \\
+            --reference ${reference_sequence} \\
+            --output "${vcf}" \\
+            --min-allele-fraction ${minimum_allele_fraction}
+        """
+}
 
-            cat vardict.txt \\
-                | teststrandbias.R \\
-                > vardict.teststrandbias.txt
 
-            cat vardict.teststrandbias.txt \\
-                | var2vcf_valid.pl -N "${id}" -E -P 0 -f ${minimum_allele_fraction} \\
-                > variants.vcf
+// annotate variant calls with the identifiers of the amplicons they fall within
+process annotate_amplicon_variants {
+    tag "${id}"
 
-        elif [ "${variant_caller}" == "haplotypecaller" ]; then
+    memory { 2.GB * task.attempt }
+    time { 1.hour * task.attempt }
+    maxRetries 2
 
-            gatk --java-options "-Xmx${java_mem}m" HaplotypeCaller \\
-                --input ${amplicon_bam} \\
-                --intervals ${target_bed} \\
-                --reference ${reference_sequence} \\
-                --output haplotypecaller.vcf \\
-                --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
-                --native-pair-hmm-threads 1 \\
-                --force-active
+    input:
+        tuple val(amplicon_group), path(target_bed), val(id), val(prefix), path(vcf)
 
-            gatk --java-options "-Xmx${java_mem}m" VariantFiltration \\
-                --variant haplotypecaller.vcf \\
-                --reference ${reference_sequence} \\
-                --filter-name "QualByDepth" --filter-expression "QD < 2.0" \\
-                --filter-name "StrandOddsRatio" --filter-expression "SOR > 3.0" \\
-                --filter-name "RMSMappingQuality" --filter-expression "MQ < 40.0" \\
-                --filter-name "MappingQualityRankSumTest" --filter-expression "MQRankSum < -12.5" \\
-                --output variants.vcf
+    output:
+        tuple val(id), val(prefix), path(annotated_vcf), emit: vcf
 
-        elif [ "${variant_caller}" == "mutect2" ]; then
-
-            gatk --java-options "-Xmx${java_mem}m" Mutect2 \\
-                --input ${amplicon_bam} \\
-                --intervals ${target_bed} \\
-                --reference ${reference_sequence} \\
-                --output mutect.vcf \\
-                --max-reads-per-alignment-start ${maximum_reads_per_alignment_start} \\
-                --minimum-allele-fraction ${minimum_allele_fraction} \\
-                --native-pair-hmm-threads 1 \\
-                --force-active
-
-            gatk --java-options "-Xmx${java_mem}m" FilterMutectCalls \\
-                --variant mutect.vcf \\
-                --reference ${reference_sequence} \\
-                --output variants.vcf \\
-                --min-allele-fraction ${minimum_allele_fraction}
-
-        else
-            echo "Unrecognized variant caller: ${variant_caller}" >&2
-            exit 1
-        fi
+    script:
+        java_mem = javaMemMB(task)
+        annotated_vcf = "${prefix}.${amplicon_group}.annotated.vcf"
+        """
+        set -e -o pipefail
 
         JAVA_OPTS="-Xmx${java_mem}m" annotate-vcf-with-amplicon-ids \\
-            --input variants.vcf \\
+            --input ${vcf} \\
             --target-intervals ${target_bed} \\
-            --output "${vcf}"
+            --output "${annotated_vcf}"
         """
 }
 
@@ -894,11 +953,23 @@ workflow {
     collected_pileup_counts = annotate_and_sort_pileup_counts.out
         .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name })
 
-    // call variants
-    call_variants(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart)
+    // call variants using the configured variant caller
+    variant_caller = normalizedVariantCaller()
+    if (variant_caller == "vardict") {
+        variants = vardict(amplicon_bams, params.minimumAlleleFraction).vcf
+    } else if (variant_caller == "haplotypecaller") {
+        variants = haplotypecaller(amplicon_bams, params.maximumReadsPerAlignmentStart).vcf
+    } else if (variant_caller == "mutect2") {
+        variants = mutect2(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart).vcf
+    } else {
+        error "Unrecognized variant caller: ${variant_caller}"
+    }
+
+    // annotate variant calls with amplicon identifiers
+    annotate_amplicon_variants(variants)
 
     // merge amplicon group VCF files for each library and convert to tabular format
-    collate_variants(call_variants.out.groupTuple(by: [0, 1]).combine(reference_sequence))
+    collate_variants(annotate_amplicon_variants.out.vcf.groupTuple(by: [0, 1]).combine(reference_sequence))
 
     // collect variant calls for all samples
     called_variants = collate_variants.out.variants
