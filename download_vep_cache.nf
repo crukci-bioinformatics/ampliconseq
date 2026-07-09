@@ -4,14 +4,6 @@
 nextflow.enable.dsl = 2
 
 
-printParameterSummary()
-
-if (params.help) {
-    helpMessage()
-    exit 0
-}
-
-
 process download_vep_cache {
 
     input:
@@ -34,6 +26,13 @@ process download_vep_cache {
 
 
 workflow {
+    printParameterSummary()
+
+    if (params.help) {
+        helpMessage()
+        return
+    }
+
     cache_dir = channel.fromPath(params.vepCacheDir, checkIfExists: true)
     download_vep_cache(cache_dir)
 }
