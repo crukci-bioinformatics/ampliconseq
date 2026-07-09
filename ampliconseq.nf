@@ -302,8 +302,6 @@ process call_variants {
 // merge amplicon group VCF files for each library and convert to tabular format
 process collate_variants {
 
-    publishDir "${params.outputDir}/vcf", mode: "copy", pattern: "${prefix}.vcf"
-
     input:
         tuple val(id), val(prefix), path(amplicon_vcfs), path(reference_sequence), path(reference_sequence_index), path(reference_sequence_dictionary)
         val jvm_overhead
@@ -427,10 +425,6 @@ process annotate_and_sort_pileup_counts {
 // collate alignment and amplicon/target coverage metrics
 process collate_alignment_coverage_metrics {
 
-    publishDir "${params.outputDir}", mode: "copy", pattern: "${alignment_coverage_metrics}"
-    publishDir "${params.outputDir}", mode: "copy", pattern: "${amplicon_coverage_metrics}"
-    publishDir "${params.outputDir}/qc", mode: "copy", pattern: "${sorted_amplicon_coverage}"
-
     input:
         path samples
         path amplicons
@@ -441,8 +435,8 @@ process collate_alignment_coverage_metrics {
 
     output:
         path alignment_coverage_metrics, emit: alignment_coverage_metrics
-        path amplicon_coverage_metrics
-        path sorted_amplicon_coverage
+        path amplicon_coverage_metrics, emit: amplicon_coverage_metrics
+        path sorted_amplicon_coverage, emit: sorted_amplicon_coverage
 
     script:
         alignment_coverage_metrics = "alignment_coverage_metrics.csv"
@@ -467,17 +461,15 @@ process collate_alignment_coverage_metrics {
 // and amplicon coverage box plot
 process create_coverage_plots {
 
-    publishDir "${params.outputDir}/qc", mode: "copy"
-
     input:
         path alignment_coverage_metrics
         path amplicon_coverage
 
     output:
         path yield_plot_svg, emit: yield_plot
-        path yield_plot_pdf
+        path yield_plot_pdf, emit: yield_plot_pdf
         path amplicon_coverage_plot_svg, emit: amplicon_coverage_plot
-        path amplicon_coverage_plot_pdf
+        path amplicon_coverage_plot_pdf, emit: amplicon_coverage_plot_pdf
 
     script:
         yield_plot_svg = "yield.svg"
@@ -495,20 +487,18 @@ process create_coverage_plots {
 // assess sample replicates based on correlation of SNV allele fractions
 process assess_replicate_vaf {
 
-    publishDir "${params.outputDir}/qc", mode: "copy"
-
     input:
         path samples
         path pileup_counts
 
     output:
-        path vaf_table
+        path vaf_table, emit: vaf_table
         path vaf_heatmap_png, emit: vaf_heatmap
-        path vaf_heatmap_svg
-        path vaf_heatmap_pdf
+        path vaf_heatmap_svg, emit: vaf_heatmap_svg
+        path vaf_heatmap_pdf, emit: vaf_heatmap_pdf
         path vaf_correlation_heatmap_png, emit: vaf_correlation_heatmap
-        path vaf_correlation_heatmap_svg
-        path vaf_correlation_heatmap_pdf
+        path vaf_correlation_heatmap_svg, emit: vaf_correlation_heatmap_svg
+        path vaf_correlation_heatmap_pdf, emit: vaf_correlation_heatmap_pdf
         path mismatched_replicates, emit: mismatched_replicates
 
     script:
@@ -532,8 +522,6 @@ process assess_replicate_vaf {
 // replicate library allele fraction correlation/clustering
 process create_qc_report {
 
-    publishDir "${params.outputDir}", mode: "copy"
-
     input:
         path alignment_metrics
         path yield_plot
@@ -543,7 +531,7 @@ process create_qc_report {
         path mismatched_replicates
 
     output:
-        path qc_report
+        path qc_report, emit: qc_report
 
     script:
         qc_report = "ampliconseq_qc_report.html"
@@ -617,8 +605,6 @@ process compute_background_noise_thresholds {
 
     time { 4.hour * task.attempt }
     maxRetries 1
-
-    publishDir "${params.outputDir}", mode: "copy"
 
     input:
         path pileup_counts
@@ -783,8 +769,6 @@ process annotate_variants {
 // add VEP and additional annotations
 process summarize_variants {
 
-    publishDir "${params.outputDir}", mode: "copy"
-
     input:
         path variants
         path blacklisted_variants
@@ -792,10 +776,12 @@ process summarize_variants {
         path offset_from_primer_end_annotations
         path other_annotations
         path reference_sequence_index
+        val minimum_depth
+        val minimum_alt_depth
 
     output:
-        path variant_summary_csv
-        path variant_summary_tsv
+        path variant_summary_csv, emit: variant_summary_csv
+        path variant_summary_tsv, emit: variant_summary_tsv
 
     script:
         output_prefix = "variants"
@@ -811,8 +797,8 @@ process summarize_variants {
             --other-annotations ${other_annotations} \
             --reference-sequence-index ${reference_sequence_index} \
             --output-prefix ${output_prefix} \
-            --minimum-depth ${params.minimumDepthForHighConfidenceCalls} \
-            --minimum-alt-depth ${params.minimumAltDepthForHighConfidenceCalls}
+            --minimum-depth ${minimum_depth} \
+            --minimum-alt-depth ${minimum_alt_depth}
         """
 }
 
@@ -823,17 +809,23 @@ process summarize_variants {
 
 workflow {
 
+    main:
+
     // show settings and/or help
     printParameterSummary()
 
     if (params.help) {
         helpMessage()
-        return
+        System.exit(0)
     }
 
     // check parameters
     if (!supportedVariantCallers().contains(normalizedVariantCaller())) {
         error "Unsupported variant caller - should be one of " + supportedVariantCallers()
+    }
+
+    if (params.containsKey('outputDir')) {
+        error "The outputDir parameter is no longer supported - set the output directory using the -output-dir command line option or the outputDir setting in a configuration file (outside the params block)."
     }
 
     sample_sheet = channel.fromPath(params.samples, checkIfExists: true)
@@ -890,9 +882,9 @@ workflow {
 
     // collect Picard metrics for all samples
     alignment_metrics = picard_metrics.out.alignment_metrics
-        .collectFile(name: "alignment_metrics.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}/qc")
+        .collectFile(name: "alignment_metrics.txt", keepHeader: true, sort: { file -> file.name })
     targeted_pcr_metrics = picard_metrics.out.targeted_pcr_metrics
-        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}/qc")
+        .collectFile(name: "targeted_pcr_metrics.txt", keepHeader: true, sort: { file -> file.name })
 
     // generate pileup counts
     pileup_counts(amplicon_bams, params.minimumMappingQualityForPileup, params.minimumBaseQualityForPileup, params.jvmOverhead)
@@ -905,7 +897,7 @@ workflow {
 
     // collect pileup counts for all libraries
     collected_pileup_counts = annotate_and_sort_pileup_counts.out
-        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name }, storeDir: "${params.outputDir}")
+        .collectFile(name: "pileup_counts.txt", keepHeader: true, sort: { file -> file.name })
 
     // call variants
     call_variants(amplicon_bams, params.minimumAlleleFraction, params.maximumReadsPerAlignmentStart, params.jvmOverhead)
@@ -992,8 +984,71 @@ workflow {
         vep_annotations,
         annotate_variants.out.offset_from_primer_end_annotations,
         annotate_variants.out.other_annotations,
-        reference_sequence_index
+        reference_sequence_index,
+        params.minimumDepthForHighConfidenceCalls,
+        params.minimumAltDepthForHighConfidenceCalls
     )
+
+    publish:
+
+    // per-sample merged VCF files
+    variant_vcfs = collate_variants.out.vcf
+
+    // alignment and coverage metrics summary tables
+    coverage_metrics = collate_alignment_coverage_metrics.out.alignment_coverage_metrics
+        .mix(collate_alignment_coverage_metrics.out.amplicon_coverage_metrics)
+    sorted_amplicon_coverage = collate_alignment_coverage_metrics.out.sorted_amplicon_coverage
+
+    // aggregated per-sample metrics and pileup counts
+    alignment_metrics_table = alignment_metrics
+    targeted_pcr_metrics_table = targeted_pcr_metrics
+    pileup_counts_table = collected_pileup_counts
+
+    // coverage plots
+    coverage_plots = create_coverage_plots.out.yield_plot
+        .mix(
+            create_coverage_plots.out.yield_plot_pdf,
+            create_coverage_plots.out.amplicon_coverage_plot,
+            create_coverage_plots.out.amplicon_coverage_plot_pdf
+        )
+
+    // replicate VAF assessment
+    replicate_vaf = assess_replicate_vaf.out.vaf_table
+        .mix(
+            assess_replicate_vaf.out.vaf_heatmap,
+            assess_replicate_vaf.out.vaf_heatmap_svg,
+            assess_replicate_vaf.out.vaf_heatmap_pdf,
+            assess_replicate_vaf.out.vaf_correlation_heatmap,
+            assess_replicate_vaf.out.vaf_correlation_heatmap_svg,
+            assess_replicate_vaf.out.vaf_correlation_heatmap_pdf,
+            assess_replicate_vaf.out.mismatched_replicates
+        )
+
+    // QC report
+    qc_report = create_qc_report.out.qc_report
+
+    // background noise thresholds
+    background_noise_thresholds = compute_background_noise_thresholds.out.position_noise_thresholds
+        .mix(compute_background_noise_thresholds.out.library_noise_thresholds)
+
+    // variant summary tables
+    variant_summary = summarize_variants.out.variant_summary_csv
+        .mix(summarize_variants.out.variant_summary_tsv)
+}
+
+
+output {
+    variant_vcfs               { path 'vcf' }
+    coverage_metrics           { path '.'  }
+    sorted_amplicon_coverage   { path 'qc' }
+    alignment_metrics_table    { path 'qc' }
+    targeted_pcr_metrics_table { path 'qc' }
+    pileup_counts_table        { path '.'  }
+    coverage_plots             { path 'qc' }
+    replicate_vaf              { path 'qc' }
+    qc_report                  { path '.'  }
+    background_noise_thresholds { path '.'  }
+    variant_summary            { path '.'  }
 }
 
 
@@ -1018,7 +1073,7 @@ def printParameterSummary() {
         Species                    : ${params.vepSpecies}
         Assembly                   : ${params.vepAssembly}
         One annotation per variant : ${params.vepPickOneAnnotationPerVariant}
-        Output directory           : ${params.outputDir}
+        Output directory           : ${workflow.outputDir}
         Variant caller             : ${params.variantCaller}
         Minimum allele fraction    : ${params.minimumAlleleFraction}
     """.stripIndent()
@@ -1047,7 +1102,6 @@ def helpMessage() {
             --vepCacheDir              Directory in which Ensembl VEP cache files are installed
             --vepSpecies               The species name, e.g. homo_sapiens
             --vepAssembly              The genome assembly, e.g. GRCh37
-            --outputDir                Directory to which output files are written
             --variantCaller            The variant caller (VarDict, HaplotypeCaller or Mutect2)
             --minimumAlleleFraction    Lower allele fraction limit for detection of variants (for variant callers that provide this option only)
 
@@ -1063,10 +1117,12 @@ def helpMessage() {
             vepCacheDir           = "/reference_data/vep_cache"
             vepSpecies            = "homo_sapiens"
             vepAssembly           = "GRCh37"
-            outputDir             = "results"
             variantCaller         = "VarDict"
             minimumAlleleFraction = 0.01
         }
+
+        // the output directory is set outside the params block (or with -output-dir)
+        outputDir = "results"
 
         and run as follows:
             nextflow run crukci-bioinformatics/ampliconseq -c ampliconseq.config
