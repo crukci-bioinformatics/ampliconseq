@@ -575,7 +575,7 @@ workflow {
         .combine(reference_sequence_index)
         .combine(reference_sequence_dictionary)
 
-    vep_cache_dir = (params.vepAnnotation ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : Channel.empty())
+    vep_cache_dir = (params.vepAnnotation ? channel.fromPath(params.vepCacheDir, checkIfExists: true) : channel.empty())
 
     // create groups of non-overlapping amplicons
     create_non_overlapping_amplicon_groups(amplicon_details, reference_sequence_index)
@@ -677,7 +677,7 @@ workflow {
     add_pileup_allele_fractions(add_specific_variants.out, collected_pileup_counts)
 
     // annotate variants using Ensembl VEP
-    one_annotation_per_variant = Channel.value(params.vepPickOneAnnotationPerVariant)
+    one_annotation_per_variant = channel.value(params.vepPickOneAnnotationPerVariant)
     variant_effect_predictor(
         add_specific_variants.out,
         reference_sequence_index,
@@ -685,7 +685,7 @@ workflow {
         one_annotation_per_variant
     )
 
-    vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : Channel.fromPath("NO_FILE") )
+    vep_annotations = ( params.vepAnnotation ? variant_effect_predictor.out : channel.fromPath("NO_FILE") )
 
     // additional annotations (sequence context, indel length, etc.)
     annotate_variants(add_specific_variants.out.combine(amplicon_groups).combine(reference_sequence))
