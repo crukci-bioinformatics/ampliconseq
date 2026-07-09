@@ -78,11 +78,27 @@ process check_inputs {
         path checked_specific_variants, emit: specific_variants
         path checked_blacklisted_variants, emit: blacklisted_variants
 
-    shell:
+    script:
         checked_sample_sheet = "samples.checked.txt"
         checked_specific_variants = "specific_variants.checked.txt"
         checked_blacklisted_variants = "blacklisted_variants.checked.txt"
-        template "check_inputs.sh"
+        """
+        set -e -o pipefail
+
+        check_sample_sheet.R \\
+            --input ${sample_sheet} \\
+            --output ${checked_sample_sheet}
+
+        check_specific_variants.R \\
+            --input ${specific_variants} \\
+            --samples ${checked_sample_sheet} \\
+            --amplicons ${amplicons} \\
+            --output ${checked_specific_variants}
+
+        check_blacklisted_variants.R \\
+            --input ${blacklisted_variants} \\
+            --output ${checked_blacklisted_variants}
+        """
 }
 
 
@@ -101,11 +117,51 @@ process picard_metrics {
         path alignment_metrics, emit: alignment_metrics
         path targeted_pcr_metrics, emit: targeted_pcr_metrics
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         alignment_metrics = "${prefix}.alignment_metrics.txt"
         targeted_pcr_metrics = "${prefix}.targeted_pcr_metrics.txt"
-        template "picard_metrics.sh"
+        """
+        set -e -o pipefail
+
+        # Picard CollectAlignmentSummaryMetrics bundled with GATK
+        gatk --java-options "-Xmx${java_mem}m" CollectAlignmentSummaryMetrics \\
+            --INPUT ${bam} \\
+            --REFERENCE_SEQUENCE ${reference_sequence} \\
+            --OUTPUT alignment_metrics.txt
+
+        extract_picard_metrics.R \\
+            --id "${id}" \\
+            --metrics alignment_metrics.txt \\
+            --output "${alignment_metrics}"
+
+        # extract amplicon and target intervals in BED format and convert to Picard
+        # interval list format
+        awk 'BEGIN { FS = "\\t"; OFS = "\\t" } FNR > 1 { print \$2, \$3, \$4, \$1 }' ${amplicon_groups} > amplicons.bed
+        gatk --java-options "-Xmx${java_mem}m" BedToIntervalList \\
+            --INPUT amplicons.bed \\
+            --SEQUENCE_DICTIONARY ${reference_sequence_dictionary} \\
+            --OUTPUT amplicons.interval_list.txt
+
+        awk 'BEGIN { FS = "\\t"; OFS = "\\t" } FNR > 1 { print \$2, \$5, \$6, \$1 }' ${amplicon_groups} > targets.bed
+        gatk --java-options "-Xmx${java_mem}m" BedToIntervalList \\
+            --INPUT targets.bed \\
+            --SEQUENCE_DICTIONARY ${reference_sequence_dictionary} \\
+            --OUTPUT targets.interval_list.txt
+
+        # Picard CollectTargetedPcrMetrics bundled with GATK
+        gatk --java-options "-Xmx${java_mem}m" CollectTargetedPcrMetrics \\
+            --INPUT ${bam} \\
+            --REFERENCE_SEQUENCE ${reference_sequence} \\
+            --AMPLICON_INTERVALS amplicons.interval_list.txt \\
+            --TARGET_INTERVALS targets.interval_list.txt \\
+            --OUTPUT targeted_pcr_metrics.txt
+
+        extract_picard_metrics.R \\
+            --id "${id}" \\
+            --metrics targeted_pcr_metrics.txt \\
+            --output "${targeted_pcr_metrics}"
+        """
 }
 
 
@@ -125,12 +181,24 @@ process extract_amplicon_regions {
         tuple val(amplicon_group), path(amplicon_bed), path(target_bed), val(id), val(prefix), path(amplicon_bam), path(amplicon_bai), emit: bam
         path(amplicon_coverage), emit: coverage
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         amplicon_bam = "${prefix}.${amplicon_group}.bam"
         amplicon_bai = "${prefix}.${amplicon_group}.bai"
         amplicon_coverage = "${prefix}.${amplicon_group}.amplicon_coverage.txt"
-        template "extract_amplicon_regions.sh"
+        """
+        set -e -o pipefail
+
+        JAVA_OPTS="-Xmx${java_mem}m" extract-amplicon-regions \\
+            --id "${id}" \\
+            --input ${bam} \\
+            --amplicon-intervals ${amplicon_bed} \\
+            --output "${amplicon_bam}" \\
+            --coverage "${amplicon_coverage}" \\
+            --maximum-distance ${params.maxDistanceFromAmpliconEnd} \\
+            --require-both-ends-anchored=${params.requireBothEndsAnchored} \\
+            --unmark-duplicate-reads
+        """
 }
 
 
@@ -148,11 +216,79 @@ process call_variants {
     output:
         tuple val(id), val(prefix), path(vcf), emit: vcf
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         variant_caller = normalizedVariantCaller()
         vcf = "${prefix}.${amplicon_group}.vcf"
-        template "call_variants.sh"
+        """
+        set -e -o pipefail
+
+        if [ "${variant_caller}" == "vardict" ]; then
+
+            JAVA_OPTS="-Xmx${java_mem}m -XX:-UsePerfData" vardict-java \\
+                -b ${amplicon_bam} \\
+                -G ${reference_sequence} \\
+                -N "${id}" \\
+                -f ${params.minimumAlleleFraction} \\
+                -z -c 1 -S 2 -E 3 -g 4 ${target_bed} \\
+                > vardict.txt
+
+            cat vardict.txt \\
+                | teststrandbias.R \\
+                > vardict.teststrandbias.txt
+
+            cat vardict.teststrandbias.txt \\
+                | var2vcf_valid.pl -N "${id}" -E -P 0 -f ${params.minimumAlleleFraction} \\
+                > variants.vcf
+
+        elif [ "${variant_caller}" == "haplotypecaller" ]; then
+
+            gatk --java-options "-Xmx${java_mem}m" HaplotypeCaller \\
+                --input ${amplicon_bam} \\
+                --intervals ${target_bed} \\
+                --reference ${reference_sequence} \\
+                --output haplotypecaller.vcf \\
+                --max-reads-per-alignment-start ${params.maximumReadsPerAlignmentStart} \\
+                --native-pair-hmm-threads 1 \\
+                --force-active
+
+            gatk --java-options "-Xmx${java_mem}m" VariantFiltration \\
+                --variant haplotypecaller.vcf \\
+                --reference ${reference_sequence} \\
+                --filter-name "QualByDepth" --filter-expression "QD < 2.0" \\
+                --filter-name "StrandOddsRatio" --filter-expression "SOR > 3.0" \\
+                --filter-name "RMSMappingQuality" --filter-expression "MQ < 40.0" \\
+                --filter-name "MappingQualityRankSumTest" --filter-expression "MQRankSum < -12.5" \\
+                --output variants.vcf
+
+        elif [ "${variant_caller}" == "mutect2" ]; then
+
+            gatk --java-options "-Xmx${java_mem}m" Mutect2 \\
+                --input ${amplicon_bam} \\
+                --intervals ${target_bed} \\
+                --reference ${reference_sequence} \\
+                --output mutect.vcf \\
+                --max-reads-per-alignment-start ${params.maximumReadsPerAlignmentStart} \\
+                --minimum-allele-fraction ${params.minimumAlleleFraction} \\
+                --native-pair-hmm-threads 1 \\
+                --force-active
+
+            gatk --java-options "-Xmx${java_mem}m" FilterMutectCalls \\
+                --variant mutect.vcf \\
+                --reference ${reference_sequence} \\
+                --output variants.vcf \\
+                --min-allele-fraction ${params.minimumAlleleFraction}
+
+        else
+            echo "Unrecognized variant caller: ${variant_caller}" >&2
+            exit 1
+        fi
+
+        JAVA_OPTS="-Xmx${java_mem}m" annotate-vcf-with-amplicon-ids \\
+            --input variants.vcf \\
+            --target-intervals ${target_bed} \\
+            --output "${vcf}"
+        """
 }
 
 
@@ -168,11 +304,60 @@ process collate_variants {
         tuple val(id), path(vcf), emit: vcf
         path variants, emit: variants
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         vcf = "${prefix}.vcf"
         variants = "${prefix}.variants.txt"
-        template "collate_variants.sh"
+        """
+        set -e -o pipefail
+
+        for amplicon_vcf in ${amplicon_vcfs}
+        do
+            echo \${amplicon_vcf} >> vcf_list.txt
+        done
+
+        gatk --java-options "-Xmx${java_mem}m" MergeVcfs \\
+            --INPUT vcf_list.txt \\
+            --SEQUENCE_DICTIONARY ${reference_sequence_dictionary} \\
+            --OUTPUT "${vcf}"
+
+        add-assorted-annotations-to-vcf \\
+            --input "${vcf}" \\
+            --output merged_annotated.vcf \\
+            --reference-sequence ${reference_sequence} \\
+            --sequence-context-length 1
+
+        # left-align and normalize indels and split multi-allelic variants
+        # note that this can still result in deletions that have an '*' for the
+        # alt allele which will need fixing
+        bcftools norm \\
+            --multiallelics -both \\
+            --fasta-ref ${reference_sequence} \\
+            merged_annotated.vcf \\
+            --output merged_annotated_normalized.vcf
+
+        gatk --java-options "-Xmx${java_mem}m" VariantsToTable \\
+            --variant merged_annotated_normalized.vcf \\
+            --output merged_annotated_normalized.txt \\
+            --show-filtered \\
+            --fields AMPLICON \\
+            --fields CHROM \\
+            --fields POS \\
+            --fields REF \\
+            --fields ALT \\
+            --fields MULTIALLELIC \\
+            --fields FILTER \\
+            --fields QUAL \\
+            --fields FivePrimeContext \\
+            --genotype-fields DP \\
+            --asGenotypeFieldsToTake AD \\
+            --asGenotypeFieldsToTake AF
+
+        tidy_variant_table.R \\
+            --input merged_annotated_normalized.txt \\
+            --id "${id}" \\
+            --output "${variants}"
+        """
 }
 
 
@@ -190,10 +375,19 @@ process pileup_counts {
     output:
         tuple val(id), val(prefix), path(pileup_counts)
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         pileup_counts = "${prefix}.${amplicon_group}.pileup_counts.txt"
-        template "pileup_counts.sh"
+        """
+        JAVA_OPTS="-Xmx${java_mem}m" pileup-counts \\
+            --id "${id}" \\
+            --input ${amplicon_bam} \\
+            --amplicon-intervals ${target_bed} \\
+            --reference-sequence ${reference_sequence} \\
+            --output "${pileup_counts}" \\
+            --minimum-mapping-quality ${params.minimumMappingQualityForPileup} \\
+            --minimum-base-quality ${params.minimumBaseQualityForPileup}
+        """
 }
 
 
@@ -480,10 +674,37 @@ process variant_effect_predictor {
     output:
         path vep_annotations
 
-    shell:
+    script:
         vep_annotations = "vep_annotations.txt"
         vep_pick_option = one_annotation_per_variant ? "--pick" : ""
-        template "variant_effect_predictor.sh"
+        """
+        set -e -o pipefail
+
+        create_distinct_vcf.R \\
+            --input ${variants} \\
+            --reference-sequence-index ${reference_sequence_index} \\
+            --output distinct_variants.vcf
+
+        vep \\
+            --input_file distinct_variants.vcf \\
+            --format vcf \\
+            --output_file distinct_variants.vep.vcf \\
+            --vcf \\
+            --offline \\
+            --dir_cache ${vep_cache_dir} \\
+            --species ${params.vepSpecies} \\
+            --assembly ${params.vepAssembly} \\
+            --buffer_size 100 \\
+            --no_stats \\
+            --dont_skip \\
+            ${vep_pick_option} \\
+            --everything \\
+            --no_escape
+
+        vep_vcf_to_tabular.R \\
+            --vcf distinct_variants.vep.vcf \\
+            --output ${vep_annotations}
+        """
 }
 
 
@@ -497,11 +718,43 @@ process annotate_variants {
         path offset_from_primer_end_annotations, emit: offset_from_primer_end_annotations
         path other_annotations, emit: other_annotations
 
-    shell:
+    script:
         java_mem = javaMemMB(task)
         offset_from_primer_end_annotations = "offset_from_primer_end_annotations.txt"
         other_annotations = "other_annotations.txt"
-        template "annotate_variants.sh"
+        """
+        set -e -o pipefail
+
+        create_distinct_vcf.R \\
+            --input ${variants} \\
+            --reference-sequence-index ${reference_sequence_index} \\
+            --output distinct_variants.vcf
+
+        add-assorted-annotations-to-vcf \\
+            --input distinct_variants.vcf \\
+            --output distinct_variants.annotated.vcf \\
+            --reference-sequence ${reference_sequence} \\
+            --sequence-context-length ${params.sequenceContextLength}
+
+        gatk --java-options "-Xmx${java_mem}m" VariantsToTable \\
+            --variant distinct_variants.annotated.vcf \\
+            --output distinct_variants.annotated.txt \\
+            --fields CHROM \\
+            --fields POS \\
+            --fields REF \\
+            --fields ALT \\
+            --fields FivePrimeContext \\
+            --fields ThreePrimeContext \\
+            --fields IndelLength
+
+        echo -e "Chromosome\\tPosition\\tRef\\tAlt\\t5' context\\tAlleles\\t3' context\\tIndel length" > ${other_annotations}
+        awk 'BEGIN { FS = "\\t"; OFS = "\\t" } FNR > 1 { print \$1, \$2, \$3, \$4, \$5, \$3"/"\$4, \$6, \$7 }' distinct_variants.annotated.txt >> ${other_annotations}
+
+        add_offset_from_primer_end.R \\
+            --variants ${variants} \\
+            --amplicons ${amplicons} \\
+            --output ${offset_from_primer_end_annotations}
+        """
 }
 
 
